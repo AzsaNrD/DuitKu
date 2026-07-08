@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartColumn } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -10,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { EmptyState } from "@/components/empty-state";
 import { formatIDR } from "@/lib/format";
 
 const MONTH_SHORT = [
@@ -45,9 +47,12 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
   const hasData = data.some((d) => d.income > 0 || d.expense > 0);
   if (!hasData) {
     return (
-      <p className="py-10 text-center text-sm text-muted-foreground">
-        Belum cukup data untuk menampilkan tren.
-      </p>
+      <EmptyState
+        compact
+        icon={ChartColumn}
+        title="Belum cukup data"
+        description="Tren pemasukan vs pengeluaran akan terlihat setelah beberapa transaksi tercatat."
+      />
     );
   }
 

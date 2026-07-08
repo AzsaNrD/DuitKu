@@ -11,7 +11,9 @@ import {
   Plus,
   Smartphone,
   Trash2,
+  Wallet as WalletIcon,
 } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -85,9 +87,9 @@ export function WalletsClient({ wallets }: { wallets: WalletWithBalance[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dompet</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Dompet</h1>
           <p className="text-sm text-muted-foreground">
             Total saldo: <span className="font-semibold text-foreground">{formatIDR(totalBalance)}</span>
           </p>
@@ -99,22 +101,33 @@ export function WalletsClient({ wallets }: { wallets: WalletWithBalance[] }) {
 
       {wallets.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            Belum ada dompet. Tambahkan dompet pertamamu (cash, rekening bank,
-            atau e-wallet) untuk mulai mencatat transaksi.
+          <CardContent>
+            <EmptyState
+              icon={WalletIcon}
+              title="Belum ada dompet"
+              description="Dompet adalah tempat uangmu berada — cash di saku, rekening bank, atau e-wallet. Tambahkan satu untuk mulai mencatat transaksi."
+              action={
+                <Button onClick={openCreate}>
+                  <Plus /> Tambah Dompet Pertama
+                </Button>
+              }
+            />
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
           {wallets.map((wallet) => {
             const meta = WALLET_TYPE_META[wallet.type];
             const Icon = meta.icon;
             return (
-              <Card key={wallet.id}>
+              <Card
+                key={wallet.id}
+                className="transition-all hover:-translate-y-0.5 hover:shadow-md"
+              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0">
                   <div className="flex items-center gap-3">
                     <span
-                      className="flex h-10 w-10 items-center justify-center rounded-lg text-white"
+                      className="flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm"
                       style={{ backgroundColor: wallet.color }}
                     >
                       <Icon className="h-5 w-5" />

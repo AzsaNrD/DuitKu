@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,6 +47,7 @@ import {
   type GoalSavingInput,
 } from "@/lib/zod-schemas";
 import { formatIDR, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { Goal } from "@/db/schema";
 
 export function GoalsClient({ goals }: { goals: Goal[] }) {
@@ -62,10 +64,10 @@ export function GoalsClient({ goals }: { goals: Goal[] }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Impian</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Impian</h1>
           <p className="text-sm text-muted-foreground">
             Target nabung untuk hal yang kamu inginkan — catat progresnya di
             sini
@@ -83,21 +85,39 @@ export function GoalsClient({ goals }: { goals: Goal[] }) {
 
       {goals.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            <Sparkles className="mx-auto mb-3 h-8 w-8" />
-            Belum ada impian. Contoh: mouse baru Rp 500.000, HP baru, liburan —
-            tentukan targetnya lalu nabung sedikit demi sedikit.
+          <CardContent>
+            <EmptyState
+              icon={Sparkles}
+              title="Belum ada impian"
+              description="Mouse baru? HP baru? Liburan? Tentukan targetnya, nabung sedikit demi sedikit, dan rayakan saat tercapai 🎉"
+              action={
+                <Button
+                  onClick={() => {
+                    setEditing(null);
+                    setFormOpen(true);
+                  }}
+                >
+                  <Plus /> Buat Impian Pertama
+                </Button>
+              }
+            />
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
           {goals.map((goal) => {
             const target = Number(goal.targetAmount);
             const saved = Number(goal.savedAmount);
             const pct = target > 0 ? (saved / target) * 100 : 0;
             const done = saved >= target;
             return (
-              <Card key={goal.id} className={done ? "border-green-500" : ""}>
+              <Card
+                key={goal.id}
+                className={cn(
+                  "transition-all hover:-translate-y-0.5 hover:shadow-md",
+                  done && "border-green-500"
+                )}
+              >
                 <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                   <div className="flex items-center gap-3">
                     <span

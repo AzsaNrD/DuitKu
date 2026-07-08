@@ -17,12 +17,12 @@ export default async function AppLayout({
     <SessionProvider>
       <div className="flex min-h-screen w-full">
         {/* Sidebar (desktop) */}
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-background p-4 md:flex">
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-background p-5 md:flex">
           <Link
             href="/dashboard"
-            className="mb-6 flex items-center gap-2 px-2 text-lg font-bold"
+            className="mb-8 flex items-center gap-2.5 px-2 text-lg font-bold tracking-tight"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Wallet className="h-4 w-4" />
             </span>
             DuitKu
@@ -30,7 +30,7 @@ export default async function AppLayout({
           <SidebarNav />
         </aside>
 
-        <div className="flex flex-1 flex-col md:pl-60">
+        <div className="flex flex-1 flex-col md:pl-64">
           {/* Header */}
           <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b bg-background/80 px-4 backdrop-blur md:px-6">
             <Link
@@ -52,7 +52,9 @@ export default async function AppLayout({
             </div>
           </header>
 
-          <main className="flex-1 p-4 pb-20 md:p-6 md:pb-6">{children}</main>
+          <main className="mx-auto w-full max-w-6xl flex-1 p-4 pb-24 md:p-8 md:pb-10">
+            {children}
+          </main>
         </div>
 
         <BottomNav />

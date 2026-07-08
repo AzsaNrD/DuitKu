@@ -74,8 +74,8 @@ export default async function ReportsPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">Laporan Bulanan</h1>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Laporan Bulanan</h1>
           <p className="text-sm text-muted-foreground">
             Evaluasi keuangan {formatMonth(month)}
           </p>

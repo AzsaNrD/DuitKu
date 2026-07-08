@@ -1,6 +1,8 @@
 "use client";
 
+import { ChartPie } from "lucide-react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { EmptyState } from "@/components/empty-state";
 import { formatIDR } from "@/lib/format";
 
 export type CategoryTotal = {
@@ -12,9 +14,12 @@ export type CategoryTotal = {
 export function ExpensePieChart({ data }: { data: CategoryTotal[] }) {
   if (data.length === 0) {
     return (
-      <p className="py-10 text-center text-sm text-muted-foreground">
-        Belum ada pengeluaran bulan ini.
-      </p>
+      <EmptyState
+        compact
+        icon={ChartPie}
+        title="Belum ada pengeluaran"
+        description="Grafik komposisi kategori akan muncul setelah ada transaksi keluar."
+      />
     );
   }
 

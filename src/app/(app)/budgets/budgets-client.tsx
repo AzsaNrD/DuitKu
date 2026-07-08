@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Target, Trash2 } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -59,10 +60,10 @@ export function BudgetsClient({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">Budget</h1>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Budget</h1>
           <p className="text-sm text-muted-foreground">
             Batasi pengeluaran per kategori supaya lebih hemat
           </p>
@@ -83,9 +84,24 @@ export function BudgetsClient({
 
       {budgets.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            Belum ada budget untuk {formatMonth(month)}. Set budget per
-            kategori untuk mengontrol pengeluaranmu.
+          <CardContent>
+            <EmptyState
+              icon={Target}
+              title={`Belum ada budget untuk ${formatMonth(month)}`}
+              description="Tentukan batas pengeluaran per kategori — indikatornya berubah warna saat mendekati limit, jadi kamu tahu kapan harus rem."
+              action={
+                availableCategories.length > 0 ? (
+                  <Button
+                    onClick={() => {
+                      setEditing(null);
+                      setOpen(true);
+                    }}
+                  >
+                    <Plus /> Set Budget Pertama
+                  </Button>
+                ) : undefined
+              }
+            />
           </CardContent>
         </Card>
       ) : (

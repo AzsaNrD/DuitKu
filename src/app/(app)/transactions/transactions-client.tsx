@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CategoryIcon } from "@/components/category-icon";
+import { EmptyState } from "@/components/empty-state";
 import {
   TransactionFormDialog,
   type EditableTransaction,
@@ -133,9 +134,9 @@ export function TransactionsClient({
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Transaksi</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Transaksi</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -270,8 +271,37 @@ export function TransactionsClient({
       {/* List */}
       {data.rows.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            Tidak ada transaksi.
+          <CardContent>
+            {hasFilters ? (
+              <EmptyState
+                icon={Search}
+                title="Tidak ada transaksi yang cocok"
+                description="Coba ubah atau reset filter untuk melihat transaksi lainnya."
+                action={
+                  <Button variant="outline" size="sm" onClick={clearFilters}>
+                    Reset Filter
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={ArrowLeftRight}
+                title="Belum ada transaksi"
+                description="Mulai catat uang masuk dan keluar supaya keuanganmu terpantau."
+                action={
+                  wallets.length > 0 ? (
+                    <Button
+                      onClick={() => {
+                        setEditing(null);
+                        setFormOpen(true);
+                      }}
+                    >
+                      <Plus /> Catat Transaksi Pertama
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )}
           </CardContent>
         </Card>
       ) : (

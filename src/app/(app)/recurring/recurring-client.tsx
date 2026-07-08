@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -81,10 +82,10 @@ export function RecurringClient({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Transaksi Berulang</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Transaksi Berulang</h1>
           <p className="text-sm text-muted-foreground">
             Gaji, langganan, cicilan — tercatat otomatis sesuai jadwal
           </p>
@@ -102,10 +103,24 @@ export function RecurringClient({
 
       {rules.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            Belum ada jadwal berulang. Contoh: gaji bulanan, langganan
-            streaming, atau cicilan — sekali diatur, transaksinya tercatat
-            otomatis setiap periode.
+          <CardContent>
+            <EmptyState
+              icon={Repeat}
+              title="Belum ada jadwal berulang"
+              description="Gaji bulanan, langganan streaming, cicilan — sekali diatur, transaksinya tercatat otomatis setiap periode. Nggak perlu ingat-ingat lagi."
+              action={
+                wallets.length > 0 ? (
+                  <Button
+                    onClick={() => {
+                      setEditing(null);
+                      setOpen(true);
+                    }}
+                  >
+                    <Plus /> Buat Jadwal Pertama
+                  </Button>
+                ) : undefined
+              }
+            />
           </CardContent>
         </Card>
       ) : (

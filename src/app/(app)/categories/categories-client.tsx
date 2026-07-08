@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -59,9 +60,9 @@ export function CategoriesClient({ categories }: { categories: Category[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Kategori</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Kategori</h1>
           <p className="text-sm text-muted-foreground">
             Kelompokkan transaksimu supaya mudah dianalisis
           </p>
@@ -146,8 +147,13 @@ function CategoryList({
   if (items.length === 0) {
     return (
       <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          Belum ada kategori.
+        <CardContent>
+          <EmptyState
+            compact
+            icon={Tags}
+            title="Belum ada kategori"
+            description="Buat kategori untuk mengelompokkan transaksimu."
+          />
         </CardContent>
       </Card>
     );
@@ -155,11 +161,14 @@ function CategoryList({
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       {items.map((category) => (
-        <Card key={category.id}>
+        <Card
+          key={category.id}
+          className="transition-all hover:-translate-y-0.5 hover:shadow-md"
+        >
           <CardContent className="flex items-center justify-between py-3">
             <div className="flex items-center gap-3">
               <span
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-white"
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm"
                 style={{ backgroundColor: category.color }}
               >
                 <CategoryIcon icon={category.icon} className="h-4 w-4" />
