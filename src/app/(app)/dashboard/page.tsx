@@ -24,7 +24,7 @@ import {
   getUserCategories,
   getWalletsWithBalances,
 } from "@/db/queries";
-import { currentMonth, formatIDR, formatMonth } from "@/lib/format";
+import { currentHour, currentMonth, formatIDR, formatMonth } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -47,7 +47,7 @@ const WALLET_ICONS = {
 } as const;
 
 function greeting() {
-  const hour = new Date().getHours();
+  const hour = currentHour();
   if (hour < 11) return "Selamat pagi";
   if (hour < 15) return "Selamat siang";
   if (hour < 19) return "Selamat sore";

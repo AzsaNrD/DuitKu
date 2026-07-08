@@ -36,16 +36,30 @@ export function formatDate(date: string): string {
   return `${Number(d)} ${MONTH_NAMES[Number(m) - 1]} ${y}`;
 }
 
-// bulan berjalan dalam format "YYYY-MM"
-export function currentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+// Semua logika tanggal memakai WIB, bukan jam server —
+// server Vercel berjalan di UTC (beda 7 jam dari Indonesia).
+export const TIMEZONE = "Asia/Jakarta";
+
+// hari ini dalam format "YYYY-MM-DD" menurut waktu Indonesia
+export function todayString(): string {
+  // locale en-CA menghasilkan format YYYY-MM-DD
+  return new Date().toLocaleDateString("en-CA", { timeZone: TIMEZONE });
 }
 
-// hari ini dalam format "YYYY-MM-DD" (timezone lokal)
-export function todayString(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+// bulan berjalan dalam format "YYYY-MM"
+export function currentMonth(): string {
+  return todayString().slice(0, 7);
+}
+
+// jam saat ini (0-23) menurut waktu Indonesia
+export function currentHour(): number {
+  return Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: TIMEZONE,
+      hour: "numeric",
+      hour12: false,
+    }).format(new Date())
+  );
 }
 
 // geser "YYYY-MM" sebanyak delta bulan

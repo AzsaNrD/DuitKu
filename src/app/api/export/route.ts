@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { getTransactionsPage } from "@/db/queries";
+import { todayString } from "@/lib/format";
 import type { TransactionType } from "@/db/schema";
 
 const TX_TYPES = ["income", "expense", "transfer"] as const;
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
 
   // BOM supaya Excel membaca UTF-8 dengan benar
   const csv = "﻿" + [header.join(","), ...lines].join("\r\n");
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayString();
 
   return new NextResponse(csv, {
     headers: {
