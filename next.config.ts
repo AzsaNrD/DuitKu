@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // PGlite memuat WASM sendiri — jangan di-bundle oleh Next
+  serverExternalPackages: ["@electric-sql/pglite"],
 };
 
 export default nextConfig;
