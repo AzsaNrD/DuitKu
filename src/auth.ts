@@ -22,6 +22,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     verificationTokensTable: verificationTokens,
   }),
   session: { strategy: "jwt" },
+  // percayai host dari header request (aman di balik Vercel/proxy;
+  // tanpa ini, build produksi self-host menolak semua request auth)
+  trustHost: true,
   pages: {
     signIn: "/login",
   },

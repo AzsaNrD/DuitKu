@@ -5,6 +5,7 @@ import NextAuth from "next-auth";
 const { auth } = NextAuth({
   providers: [],
   session: { strategy: "jwt" },
+  trustHost: true,
   pages: { signIn: "/login" },
   callbacks: {
     authorized: ({ auth, request }) => {
