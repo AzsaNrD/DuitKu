@@ -30,7 +30,9 @@ export default async function AppLayout({
           <SidebarNav />
         </aside>
 
-        <div className="flex flex-1 flex-col md:pl-64">
+        {/* min-w-0 agar kolom boleh menyusut — tanpa ini teks panjang
+            (truncate) memaksa halaman melebar & muncul scroll horizontal */}
+        <div className="flex min-w-0 flex-1 flex-col md:pl-64">
           {/* Header */}
           <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b bg-background/80 px-4 backdrop-blur md:px-6">
             <Link
