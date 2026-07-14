@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { actionToast } from "@/lib/action-toast";
 import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -51,11 +51,13 @@ export function CategoriesClient({ categories }: { categories: Category[] }) {
     setOpen(true);
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!deleting) return;
-    const res = await deleteCategory(deleting.id);
-    if (res.success) toast.success("Kategori dihapus");
     setDeleting(null);
+    actionToast(deleteCategory(deleting.id), {
+      loading: "Menghapus kategori...",
+      success: "Kategori dihapus",
+    });
   }
 
   return (
@@ -226,16 +228,15 @@ function CategoryFormDialog({
       : { name: "", type: defaultType, icon: "circle", color: "#6366f1" },
   });
 
-  async function onSubmit(data: CategoryInput) {
-    const res = editing
-      ? await updateCategory(editing.id, data)
-      : await createCategory(data);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(editing ? "Kategori diperbarui" : "Kategori ditambahkan");
+  function onSubmit(data: CategoryInput) {
     onOpenChange(false);
+    actionToast(
+      editing ? updateCategory(editing.id, data) : createCategory(data),
+      {
+        loading: "Menyimpan kategori...",
+        success: editing ? "Kategori diperbarui" : "Kategori ditambahkan",
+      }
+    );
   }
 
   return (

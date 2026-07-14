@@ -27,7 +27,7 @@ export function CategoryBars({
                   />
                   {item.name}
                 </span>
-                <span className="font-medium">
+                <span className="money font-medium">
                   {formatIDR(item.total)}{" "}
                   <span className="text-xs text-muted-foreground">
                     ({pct.toFixed(0)}%)

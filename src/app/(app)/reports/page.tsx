@@ -92,10 +92,10 @@ export default async function ReportsPage({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+            <p className="money text-2xl font-bold text-green-600 dark:text-green-400">
               {formatIDR(summary.income)}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="money text-xs text-muted-foreground">
               Bulan lalu: {formatIDR(prevSummary.income)}
             </p>
           </CardContent>
@@ -107,11 +107,11 @@ export default async function ReportsPage({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            <p className="money text-2xl font-bold text-red-600 dark:text-red-400">
               {formatIDR(summary.expense)}
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs text-muted-foreground">
+              <p className="money text-xs text-muted-foreground">
                 Bulan lalu: {formatIDR(prevSummary.expense)}
               </p>
               <ChangeBadge
@@ -129,7 +129,7 @@ export default async function ReportsPage({
           </CardHeader>
           <CardContent className="space-y-1">
             <p
-              className={`text-2xl font-bold ${net >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+              className={`money text-2xl font-bold ${net >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
             >
               {net >= 0 ? "+" : ""}
               {formatIDR(net)}

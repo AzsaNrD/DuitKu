@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { actionToast } from "@/lib/action-toast";
 import {
   ArrowLeftRight,
   Pause,
@@ -68,17 +68,20 @@ export function RecurringClient({
   const [editing, setEditing] = useState<RecurringRow | null>(null);
   const [deleting, setDeleting] = useState<RecurringRow | null>(null);
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!deleting) return;
-    const res = await deleteRecurring(deleting.id);
-    if (res.success) toast.success("Jadwal dihapus");
     setDeleting(null);
+    actionToast(deleteRecurring(deleting.id), {
+      loading: "Menghapus jadwal...",
+      success: "Jadwal dihapus",
+    });
   }
 
-  async function handleToggle(rule: RecurringRow) {
-    const res = await toggleRecurring(rule.id, !rule.active);
-    if (res.success)
-      toast.success(rule.active ? "Jadwal dijeda" : "Jadwal diaktifkan");
+  function handleToggle(rule: RecurringRow) {
+    actionToast(toggleRecurring(rule.id, !rule.active), {
+      loading: rule.active ? "Menjeda jadwal..." : "Mengaktifkan jadwal...",
+      success: rule.active ? "Jadwal dijeda" : "Jadwal diaktifkan",
+    });
   }
 
   return (
@@ -177,7 +180,7 @@ export function RecurringClient({
                   {!rule.active && <Badge variant="secondary">Dijeda</Badge>}
                   <span
                     className={cn(
-                      "shrink-0 text-sm font-semibold",
+                      "money shrink-0 text-sm font-semibold",
                       rule.type === "income" &&
                         "text-green-600 dark:text-green-400",
                       rule.type === "expense" &&
@@ -327,16 +330,15 @@ function RecurringFormDialog({
     { value: "monthly", label: "Setiap bulan" },
   ];
 
-  async function onSubmit(data: RecurringInput) {
-    const res = editing
-      ? await updateRecurring(editing.id, data)
-      : await createRecurring(data);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(editing ? "Jadwal diperbarui" : "Jadwal dibuat");
+  function onSubmit(data: RecurringInput) {
     onOpenChange(false);
+    actionToast(
+      editing ? updateRecurring(editing.id, data) : createRecurring(data),
+      {
+        loading: "Menyimpan jadwal...",
+        success: editing ? "Jadwal diperbarui" : "Jadwal dibuat",
+      }
+    );
   }
 
   return (

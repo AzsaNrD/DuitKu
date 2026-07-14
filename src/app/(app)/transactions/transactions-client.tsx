@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { toast } from "sonner";
+import { actionToast } from "@/lib/action-toast";
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -43,7 +43,7 @@ import {
   type EditableTransaction,
 } from "@/components/transaction-form-dialog";
 import { deleteTransaction } from "@/actions/transactions";
-import { formatIDR, formatDate } from "@/lib/format";
+import { formatIDR, formatDate, todayString } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type {
   getTransactionsPage,
@@ -55,6 +55,38 @@ import type { Category, Wallet } from "@/db/schema";
 type PageData = Awaited<ReturnType<typeof getTransactionsPage>>;
 
 const ALL = "__all__";
+
+// kelompokkan baris (sudah terurut tanggal desc) per tanggal,
+// dengan selisih harian (income - expense, transfer diabaikan)
+function groupByDate(rows: TransactionRow[]) {
+  const groups: { date: string; rows: TransactionRow[]; net: number }[] = [];
+  for (const row of rows) {
+    let group = groups[groups.length - 1];
+    if (!group || group.date !== row.date) {
+      group = { date: row.date, rows: [], net: 0 };
+      groups.push(group);
+    }
+    group.rows.push(row);
+    if (row.type === "income") group.net += Number(row.amount);
+    if (row.type === "expense") group.net -= Number(row.amount);
+  }
+  return groups;
+}
+
+function dateLabel(date: string) {
+  const today = todayString();
+  if (date === today) return "Hari Ini";
+  const [y, m, d] = date.split("-").map(Number);
+  const yesterday = new Date(Date.UTC(y, m - 1, d));
+  const todayParts = today.split("-").map(Number);
+  const diffDays = Math.round(
+    (Date.UTC(todayParts[0], todayParts[1] - 1, todayParts[2]) -
+      yesterday.getTime()) /
+      86400000
+  );
+  if (diffDays === 1) return "Kemarin";
+  return formatDate(date);
+}
 
 export function TransactionsClient({
   data,
@@ -111,11 +143,13 @@ export function TransactionsClient({
     setFormOpen(true);
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!deleting) return;
-    const res = await deleteTransaction(deleting.id);
-    if (res.success) toast.success("Transaksi dihapus");
     setDeleting(null);
+    actionToast(deleteTransaction(deleting.id), {
+      loading: "Menghapus transaksi...",
+      success: "Transaksi dihapus",
+    });
   }
 
   const typeItems = [
@@ -305,18 +339,43 @@ export function TransactionsClient({
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="divide-y p-0">
-            {data.rows.map((row) => (
-              <TransactionItem
-                key={row.id}
-                row={row}
-                onEdit={() => openEdit(row)}
-                onDelete={() => setDeleting(row)}
-              />
-            ))}
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          {groupByDate(data.rows).map(({ date, rows, net }) => (
+            <Card key={date}>
+              <CardContent className="p-0">
+                <div className="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {dateLabel(date)}
+                  </span>
+                  {net !== 0 && (
+                    <span
+                      className={cn(
+                        "money text-xs font-semibold",
+                        net > 0
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
+                      )}
+                    >
+                      {net > 0 ? "+" : "-"}
+                      {formatIDR(Math.abs(net))}
+                    </span>
+                  )}
+                </div>
+                <div className="divide-y">
+                  {rows.map((row) => (
+                    <TransactionItem
+                      key={row.id}
+                      row={row}
+                      hideDate
+                      onEdit={() => openEdit(row)}
+                      onDelete={() => setDeleting(row)}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* Pagination */}
@@ -381,10 +440,12 @@ export function TransactionItem({
   row,
   onEdit,
   onDelete,
+  hideDate = false,
 }: {
   row: TransactionRow;
   onEdit?: () => void;
   onDelete?: () => void;
+  hideDate?: boolean;
 }) {
   const isIncome = row.type === "income";
   const isTransfer = row.type === "transfer";
@@ -418,14 +479,18 @@ export function TransactionItem({
             : (row.categoryName ?? "Tanpa Kategori")}
         </p>
         <p className="truncate text-xs text-muted-foreground">
-          {formatDate(row.date)}
-          {!isTransfer && ` · ${row.walletName}`}
-          {row.note && ` · ${row.note}`}
+          {[
+            hideDate ? null : formatDate(row.date),
+            isTransfer ? null : row.walletName,
+            row.note,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
       </div>
       <span
         className={cn(
-          "shrink-0 text-sm font-semibold",
+          "money shrink-0 text-sm font-semibold",
           isIncome && "text-green-600 dark:text-green-400",
           row.type === "expense" && "text-red-600 dark:text-red-400"
         )}

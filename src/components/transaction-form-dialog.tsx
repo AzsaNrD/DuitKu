@@ -2,7 +2,7 @@
 
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { actionToast } from "@/lib/action-toast";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -99,16 +99,16 @@ export function TransactionFormDialog({
     .filter((w) => w.id !== walletId)
     .map((w) => ({ value: w.id, label: w.name }));
 
-  async function onSubmit(data: TransactionInput) {
-    const res = editing
-      ? await updateTransaction(editing.id, data)
-      : await createTransaction(data);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(editing ? "Transaksi diperbarui" : "Transaksi dicatat");
+  function onSubmit(data: TransactionInput) {
+    // tutup dialog seketika; proses berjalan di latar dengan toast
     onOpenChange(false);
+    actionToast(
+      editing ? updateTransaction(editing.id, data) : createTransaction(data),
+      {
+        loading: "Menyimpan transaksi...",
+        success: editing ? "Transaksi diperbarui" : "Transaksi dicatat",
+      }
+    );
   }
 
   return (

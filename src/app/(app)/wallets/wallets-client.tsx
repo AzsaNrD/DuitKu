@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { actionToast } from "@/lib/action-toast";
 import {
   Banknote,
   CreditCard,
@@ -78,11 +78,13 @@ export function WalletsClient({ wallets }: { wallets: WalletWithBalance[] }) {
     setOpen(true);
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!deleting) return;
-    const res = await deleteWallet(deleting.id);
-    if (res.success) toast.success("Dompet dihapus");
     setDeleting(null);
+    actionToast(deleteWallet(deleting.id), {
+      loading: "Menghapus dompet...",
+      success: "Dompet dihapus",
+    });
   }
 
   return (
@@ -91,7 +93,7 @@ export function WalletsClient({ wallets }: { wallets: WalletWithBalance[] }) {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Dompet</h1>
           <p className="text-sm text-muted-foreground">
-            Total saldo: <span className="font-semibold text-foreground">{formatIDR(totalBalance)}</span>
+            Total saldo: <span className="money font-semibold text-foreground">{formatIDR(totalBalance)}</span>
           </p>
         </div>
         <Button onClick={openCreate}>
@@ -157,7 +159,7 @@ export function WalletsClient({ wallets }: { wallets: WalletWithBalance[] }) {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">
+                  <p className="money text-2xl font-bold">
                     {formatIDR(wallet.balance)}
                   </p>
                 </CardContent>
@@ -225,16 +227,15 @@ function WalletFormDialog({
       : { name: "", type: "cash", initialBalance: 0, color: "#6366f1" },
   });
 
-  async function onSubmit(data: WalletInput) {
-    const res = editing
-      ? await updateWallet(editing.id, data)
-      : await createWallet(data);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(editing ? "Dompet diperbarui" : "Dompet ditambahkan");
+  function onSubmit(data: WalletInput) {
     onOpenChange(false);
+    actionToast(
+      editing ? updateWallet(editing.id, data) : createWallet(data),
+      {
+        loading: "Menyimpan dompet...",
+        success: editing ? "Dompet diperbarui" : "Dompet ditambahkan",
+      }
+    );
   }
 
   return (

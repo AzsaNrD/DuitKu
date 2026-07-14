@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { actionToast } from "@/lib/action-toast";
 import { Pencil, Plus, Target, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -52,11 +52,13 @@ export function BudgetsClient({
     (c) => !usedCategoryIds.has(c.id)
   );
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!deleting) return;
-    const res = await deleteBudget(deleting.id);
-    if (res.success) toast.success("Budget dihapus");
     setDeleting(null);
+    actionToast(deleteBudget(deleting.id), {
+      loading: "Menghapus budget...",
+      success: "Budget dihapus",
+    });
   }
 
   return (
@@ -207,14 +209,12 @@ function BudgetFormDialog({
     label: c.name,
   }));
 
-  async function onSubmit(data: BudgetInput) {
-    const res = await upsertBudget(data);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Budget disimpan");
+  function onSubmit(data: BudgetInput) {
     onOpenChange(false);
+    actionToast(upsertBudget(data), {
+      loading: "Menyimpan budget...",
+      success: "Budget disimpan",
+    });
   }
 
   return (

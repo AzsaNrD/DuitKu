@@ -50,7 +50,7 @@ export function BudgetProgressItem({
           style={{ width: `${clamped}%` }}
         />
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="money text-xs text-muted-foreground">
         {formatIDR(budget.spent)} dari {formatIDR(budget.amount)}
         {pct > 100 && (
           <span className="ml-1 font-medium text-red-600 dark:text-red-400">

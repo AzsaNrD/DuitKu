@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { actionToast } from "@/lib/action-toast";
 import {
   Minus,
   PartyPopper,
@@ -56,11 +56,13 @@ export function GoalsClient({ goals }: { goals: Goal[] }) {
   const [saving, setSaving] = useState<Goal | null>(null);
   const [deleting, setDeleting] = useState<Goal | null>(null);
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!deleting) return;
-    const res = await deleteGoal(deleting.id);
-    if (res.success) toast.success("Impian dihapus");
     setDeleting(null);
+    actionToast(deleteGoal(deleting.id), {
+      loading: "Menghapus impian...",
+      success: "Impian dihapus",
+    });
   }
 
   return (
@@ -162,10 +164,10 @@ export function GoalsClient({ goals }: { goals: Goal[] }) {
                 <CardContent className="space-y-3">
                   <div>
                     <div className="mb-1 flex items-baseline justify-between">
-                      <span className="text-lg font-bold">
+                      <span className="money text-lg font-bold">
                         {formatIDR(saved)}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="money text-xs text-muted-foreground">
                         dari {formatIDR(target)}
                       </span>
                     </div>
@@ -268,16 +270,17 @@ function GoalFormDialog({
       : { name: "", targetAmount: undefined, color: "#6366f1", targetDate: "" },
   });
 
-  async function onSubmit(data: GoalInput) {
-    const res = editing
-      ? await updateGoal(editing.id, data)
-      : await createGoal(data);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(editing ? "Impian diperbarui" : "Impian dibuat — semangat nabung!");
+  function onSubmit(data: GoalInput) {
     onOpenChange(false);
+    actionToast(
+      editing ? updateGoal(editing.id, data) : createGoal(data),
+      {
+        loading: "Menyimpan impian...",
+        success: editing
+          ? "Impian diperbarui"
+          : "Impian dibuat — semangat nabung!",
+      }
+    );
   }
 
   return (
@@ -368,16 +371,12 @@ function SavingDialog({
     defaultValues: { amount: undefined },
   });
 
-  async function onSubmit(data: GoalSavingInput) {
-    const res = await adjustGoalSavings(goal.id, data, direction);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(
-      direction === 1 ? "Tabungan bertambah 💪" : "Tabungan dikurangi"
-    );
+  function onSubmit(data: GoalSavingInput) {
     onOpenChange(false);
+    actionToast(adjustGoalSavings(goal.id, data, direction), {
+      loading: "Menyimpan...",
+      success: direction === 1 ? "Tabungan bertambah 💪" : "Tabungan dikurangi",
+    });
   }
 
   return (

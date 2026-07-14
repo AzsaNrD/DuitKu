@@ -103,7 +103,7 @@ export default async function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold tracking-tight md:text-[1.7rem]">
+            <p className="money text-2xl font-bold tracking-tight md:text-[1.7rem]">
               {formatIDR(totalBalance)}
             </p>
             <p className="mt-1 text-xs text-white/75">
@@ -122,7 +122,7 @@ export default async function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold tracking-tight text-green-600 dark:text-green-400">
+            <p className="money text-2xl font-bold tracking-tight text-green-600 dark:text-green-400">
               {formatIDR(summary.income)}
             </p>
           </CardContent>
@@ -138,7 +138,7 @@ export default async function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
+            <p className="money text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
               {formatIDR(summary.expense)}
             </p>
           </CardContent>
@@ -155,7 +155,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p
-              className={`text-2xl font-bold tracking-tight ${net >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+              className={`money text-2xl font-bold tracking-tight ${net >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
             >
               {net >= 0 ? "+" : ""}
               {formatIDR(net)}
@@ -206,7 +206,7 @@ export default async function DashboardPage() {
                           {wallet.name}
                         </span>
                       </div>
-                      <span className="text-sm font-semibold">
+                      <span className="money text-sm font-semibold">
                         {formatIDR(wallet.balance)}
                       </span>
                     </div>
@@ -300,7 +300,7 @@ export default async function DashboardPage() {
                         <span className="font-medium">
                           {goal.name} {done && "🎉"}
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="money text-xs text-muted-foreground">
                           {formatIDR(saved)} / {formatIDR(target)}
                         </span>
                       </div>

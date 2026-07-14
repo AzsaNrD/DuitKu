@@ -3,6 +3,7 @@ import { Wallet } from "lucide-react";
 import { auth } from "@/auth";
 import { SessionProvider } from "next-auth/react";
 import { SidebarNav, BottomNav } from "@/components/nav-links";
+import { BalanceToggle } from "@/components/balance-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 
@@ -45,6 +46,7 @@ export default async function AppLayout({
               DuitKu
             </Link>
             <div className="ml-auto flex items-center gap-1">
+              <BalanceToggle />
               <ThemeToggle />
               <UserMenu
                 name={session?.user?.name}
