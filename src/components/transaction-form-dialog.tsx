@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AmountInput } from "@/components/amount-input";
+import { QuickAmounts } from "@/components/quick-amounts";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -113,7 +114,7 @@ export function TransactionFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {editing ? "Edit Transaksi" : "Catat Transaksi"}
@@ -159,6 +160,7 @@ export function TransactionFormDialog({
               placeholder="cth: 25.000"
               {...register("amount")}
             />
+            <QuickAmounts targetId="tx-amount" />
             {errors.amount && (
               <p className="text-sm text-destructive">
                 {errors.amount.message}

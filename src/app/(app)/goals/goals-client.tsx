@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AmountInput } from "@/components/amount-input";
+import { QuickAmounts } from "@/components/quick-amounts";
 import { ColorPicker } from "@/components/color-picker";
 import {
   createGoal,
@@ -415,6 +416,7 @@ function SavingDialog({
               placeholder="cth: 50.000"
               {...register("amount")}
             />
+            <QuickAmounts targetId="saving-amount" />
             {errors.amount && (
               <p className="text-sm text-destructive">
                 {errors.amount.message}

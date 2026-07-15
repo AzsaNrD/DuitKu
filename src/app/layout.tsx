@@ -37,6 +37,9 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
+  // keyboard HP ikut menyusutkan viewport, supaya dialog (max-h dvh)
+  // ter-clamp dan bisa di-scroll, tidak terpotong di balik keyboard
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

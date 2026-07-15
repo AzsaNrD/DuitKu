@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AmountInput } from "@/components/amount-input";
+import { QuickAmounts } from "@/components/quick-amounts";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -343,7 +344,7 @@ function RecurringFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {editing ? "Edit Jadwal Berulang" : "Jadwal Berulang Baru"}
@@ -389,6 +390,7 @@ function RecurringFormDialog({
               placeholder="cth: 5.000.000"
               {...register("amount")}
             />
+            <QuickAmounts targetId="rec-amount" />
             {errors.amount && (
               <p className="text-sm text-destructive">
                 {errors.amount.message}

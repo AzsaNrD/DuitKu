@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AmountInput } from "@/components/amount-input";
+import { QuickAmounts } from "@/components/quick-amounts";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -269,6 +270,7 @@ function BudgetFormDialog({
               placeholder="cth: 1.000.000"
               {...register("amount")}
             />
+            <QuickAmounts targetId="budget-amount" />
             {errors.amount && (
               <p className="text-sm text-destructive">
                 {errors.amount.message}
