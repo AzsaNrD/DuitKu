@@ -63,7 +63,10 @@ function SelectContent({
   sideOffset = 4,
   align = "center",
   alignOffset = 0,
-  alignItemWithTrigger = true,
+  // false: popup jadi dropdown biasa dengan deteksi tabrakan layar.
+  // Default Base UI (true, gaya macOS yang menimpa trigger) membuat
+  // daftar panjang menjulur keluar layar di HP.
+  alignItemWithTrigger = false,
   ...props
 }: SelectPrimitive.Popup.Props &
   Pick<
