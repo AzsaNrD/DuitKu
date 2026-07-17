@@ -38,7 +38,11 @@ export function LoginForm() {
       redirect: false,
     });
     if (res?.error) {
-      setError("Email atau password salah");
+      setError(
+        res.code === "rate_limited"
+          ? "Terlalu banyak percobaan. Tunggu 15 menit lalu coba lagi."
+          : "Email atau password salah"
+      );
       return;
     }
     router.push("/dashboard");

@@ -215,6 +215,22 @@ export const recurringRules = pgTable(
   (table) => [index("recurring_rules_user_id_idx").on(table.userId)]
 );
 
+// Catatan percobaan untuk rate limiting (login/register).
+// Disimpan di DB supaya bekerja lintas instance serverless.
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    key: text("key").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("rate_limits_key_created_idx").on(table.key, table.createdAt),
+  ]
+);
+
 // Target nabung / impian (mis. "Mouse gaming Rp 500rb").
 // savedAmount adalah catatan progres manual — tidak mengubah saldo dompet.
 export const goals = pgTable(
