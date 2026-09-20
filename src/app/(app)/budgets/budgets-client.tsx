@@ -91,7 +91,7 @@ export function BudgetsClient({
             <EmptyState
               icon={Target}
               title={`Belum ada budget untuk ${formatMonth(month)}`}
-              description="Tentukan batas pengeluaran per kategori — indikatornya berubah warna saat mendekati limit, jadi kamu tahu kapan harus rem."
+              description="Tentukan batas pengeluaran per kategori: indikatornya berubah warna saat mendekati limit, jadi kamu tahu kapan harus rem."
               action={
                 availableCategories.length > 0 ? (
                   <Button
@@ -223,7 +223,7 @@ function BudgetFormDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {editing ? "Edit Budget" : "Set Budget"} — {formatMonth(month)}
+            {editing ? "Edit Budget" : "Set Budget"}: {formatMonth(month)}
           </DialogTitle>
           <DialogDescription>
             Tentukan batas pengeluaran untuk satu kategori dalam sebulan.

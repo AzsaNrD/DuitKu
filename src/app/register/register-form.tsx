@@ -44,6 +44,9 @@ export function RegisterForm() {
       password: data.password,
       redirect: false,
     });
+    // tawaran pindahkan data mode tanpa-akun ditangani di (app)/layout.tsx
+    // (lihat GuestMigrationCheck) — bukan di sini, supaya request server
+    // action-nya tidak kena redirect proxy.ts untuk halaman /register
     router.push("/dashboard");
     router.refresh();
   }
@@ -104,6 +107,12 @@ export function RegisterForm() {
           <Link href="/login" className="text-primary underline-offset-4 hover:underline">
             Masuk
           </Link>
+        </p>
+        <p className="text-center text-sm text-muted-foreground">
+          <Link href="/guest/dashboard" className="text-primary underline-offset-4 hover:underline">
+            Coba tanpa akun
+          </Link>
+          , data tersimpan di browser ini saja
         </p>
       </CardContent>
     </Card>

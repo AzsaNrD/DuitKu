@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { actionToast } from "@/lib/action-toast";
+import { actionToast, type ActionResult } from "@/lib/action-toast";
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -14,6 +14,7 @@ import {
   Pencil,
   Plus,
   Repeat,
+  Scale,
   Search,
   Trash2,
   X,
@@ -41,6 +42,7 @@ import { EmptyState } from "@/components/empty-state";
 import {
   TransactionFormDialog,
   type EditableTransaction,
+  type TransactionGuestActions,
 } from "@/components/transaction-form-dialog";
 import { deleteTransaction } from "@/actions/transactions";
 import { formatIDR, formatDate, todayString } from "@/lib/format";
@@ -53,6 +55,14 @@ import type {
 import type { Category, Wallet } from "@/db/schema";
 
 type PageData = Awaited<ReturnType<typeof getTransactionsPage>>;
+
+// override untuk mode tanpa akun (localStorage) — defaultnya action server
+// asli + tombol export CSV lewat /api/export, jadi halaman yang sudah ada
+// (login) tidak perlu berubah sama sekali
+export type TransactionsGuestActions = TransactionGuestActions & {
+  deleteTransaction: (id: string) => Promise<ActionResult>;
+  onExportCsv: () => void;
+};
 
 const ALL = "__all__";
 
@@ -93,11 +103,13 @@ export function TransactionsClient({
   wallets,
   categories,
   filters,
+  guest,
 }: {
   data: PageData;
   wallets: Wallet[];
   categories: Category[];
   filters: TransactionFilters;
+  guest?: TransactionsGuestActions;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -130,6 +142,9 @@ export function TransactionsClient({
     filters.q;
 
   function openEdit(row: TransactionRow) {
+    // baris "adjustment" tidak punya tombol edit (lihat TransactionItem),
+    // guard ini hanya untuk menyempitkan tipe row.type buat TypeScript
+    if (row.type === "adjustment") return;
     setEditing({
       id: row.id,
       type: row.type,
@@ -146,7 +161,8 @@ export function TransactionsClient({
   function handleDelete() {
     if (!deleting) return;
     setDeleting(null);
-    actionToast(deleteTransaction(deleting.id), {
+    const deleteFn = guest?.deleteTransaction ?? deleteTransaction;
+    actionToast(deleteFn(deleting.id), {
       loading: "Menghapus transaksi...",
       success: "Transaksi dihapus",
     });
@@ -157,6 +173,7 @@ export function TransactionsClient({
     { value: "expense", label: "Keluar" },
     { value: "income", label: "Masuk" },
     { value: "transfer", label: "Transfer" },
+    { value: "adjustment", label: "Penyesuaian" },
   ];
   const walletItems = [
     { value: ALL, label: "Semua Dompet" },
@@ -172,24 +189,36 @@ export function TransactionsClient({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Transaksi</h1>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            title="Download CSV (mengikuti filter aktif)"
-            nativeButton={false}
-            render={
-              // route handler /api/export menerima query filter yang sama
-              <a href={`/api/export?${searchParams.toString()}`} download />
-            }
-          >
-            <Download /> <span className="hidden sm:inline">Export</span>
-          </Button>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/recurring" />}
-          >
-            <Repeat /> <span className="hidden sm:inline">Berulang</span>
-          </Button>
+          {guest ? (
+            <Button
+              variant="outline"
+              title="Download CSV (mengikuti filter aktif)"
+              onClick={guest.onExportCsv}
+            >
+              <Download /> <span className="hidden sm:inline">Export</span>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              title="Download CSV (mengikuti filter aktif)"
+              nativeButton={false}
+              render={
+                // route handler /api/export menerima query filter yang sama
+                <a href={`/api/export?${searchParams.toString()}`} download />
+              }
+            >
+              <Download /> <span className="hidden sm:inline">Export</span>
+            </Button>
+          )}
+          {!guest && (
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/recurring" />}
+            >
+              <Repeat /> <span className="hidden sm:inline">Berulang</span>
+            </Button>
+          )}
           <Button
             onClick={() => {
               setEditing(null);
@@ -410,6 +439,7 @@ export function TransactionsClient({
           wallets={wallets}
           categories={categories}
           editing={editing}
+          guest={guest}
         />
       )}
 
@@ -449,6 +479,9 @@ export function TransactionItem({
 }) {
   const isIncome = row.type === "income";
   const isTransfer = row.type === "transfer";
+  const isAdjustment = row.type === "adjustment";
+  // amount penyesuaian bisa negatif (nilai bertanda), beda dari tipe lain
+  const adjustmentAmount = isAdjustment ? Number(row.amount) : 0;
 
   return (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -459,11 +492,15 @@ export function TransactionItem({
         style={{
           backgroundColor: isTransfer
             ? "#64748b"
-            : (row.categoryColor ?? "#737373"),
+            : isAdjustment
+              ? "#f59e0b"
+              : (row.categoryColor ?? "#737373"),
         }}
       >
         {isTransfer ? (
           <ArrowLeftRight className="h-4 w-4" />
+        ) : isAdjustment ? (
+          <Scale className="h-4 w-4" />
         ) : row.categoryIcon ? (
           <CategoryIcon icon={row.categoryIcon} className="h-4 w-4" />
         ) : isIncome ? (
@@ -476,7 +513,9 @@ export function TransactionItem({
         <p className="truncate text-sm font-medium">
           {isTransfer
             ? `Transfer: ${row.walletName} → ${row.transferToWalletName ?? "?"}`
-            : (row.categoryName ?? "Tanpa Kategori")}
+            : isAdjustment
+              ? "Penyesuaian Saldo"
+              : (row.categoryName ?? "Tanpa Kategori")}
         </p>
         <p className="truncate text-xs text-muted-foreground">
           {[
@@ -492,20 +531,33 @@ export function TransactionItem({
         className={cn(
           "money shrink-0 text-sm font-semibold",
           isIncome && "text-green-600 dark:text-green-400",
-          row.type === "expense" && "text-red-600 dark:text-red-400"
+          row.type === "expense" && "text-red-600 dark:text-red-400",
+          isAdjustment && "text-amber-600 dark:text-amber-400"
         )}
       >
-        {isIncome ? "+" : row.type === "expense" ? "-" : ""}
-        {formatIDR(Number(row.amount))}
+        {isIncome
+          ? "+"
+          : row.type === "expense"
+            ? "-"
+            : isAdjustment
+              ? adjustmentAmount >= 0
+                ? "+"
+                : "-"
+              : ""}
+        {formatIDR(Math.abs(isAdjustment ? adjustmentAmount : Number(row.amount)))}
       </span>
-      {onEdit && onDelete && (
+      {(onEdit || onDelete) && (
         <div className="flex shrink-0 gap-1">
-          <Button variant="ghost" size="icon" onClick={onEdit}>
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={onDelete}>
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+          {onEdit && !isAdjustment && (
+            <Button variant="ghost" size="icon" onClick={onEdit}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button variant="ghost" size="icon" onClick={onDelete}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          )}
         </div>
       )}
     </div>

@@ -91,7 +91,7 @@ export function RecurringClient({
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Transaksi Berulang</h1>
           <p className="text-sm text-muted-foreground">
-            Gaji, langganan, cicilan — tercatat otomatis sesuai jadwal
+            Gaji, langganan, cicilan: tercatat otomatis sesuai jadwal
           </p>
         </div>
         <Button
@@ -111,7 +111,7 @@ export function RecurringClient({
             <EmptyState
               icon={Repeat}
               title="Belum ada jadwal berulang"
-              description="Gaji bulanan, langganan streaming, cicilan — sekali diatur, transaksinya tercatat otomatis setiap periode. Nggak perlu ingat-ingat lagi."
+              description="Gaji bulanan, langganan streaming, cicilan: sekali diatur, transaksinya tercatat otomatis setiap periode. Nggak perlu ingat-ingat lagi."
               action={
                 wallets.length > 0 ? (
                   <Button
@@ -288,9 +288,11 @@ function RecurringFormDialog({
     formState: { errors, isSubmitting },
   } = useForm<RecurringInput>({
     resolver: zodResolver(recurringSchema),
+    // aturan berulang tidak pernah bertipe "adjustment" (recurringSchema
+    // tidak mengizinkannya), tapi kolomnya berbagi tipe TransactionType
     defaultValues: editing
       ? {
-          type: editing.type,
+          type: editing.type as "income" | "expense" | "transfer",
           amount: Number(editing.amount),
           walletId: editing.walletId,
           categoryId: editing.categoryId ?? undefined,

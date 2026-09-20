@@ -4,8 +4,15 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { transactions } from "@/db/schema";
+import { getWalletsWithBalances } from "@/db/queries";
 import { requireUserId } from "@/lib/require-user";
-import { transactionSchema, type TransactionInput } from "@/lib/zod-schemas";
+import { todayString } from "@/lib/format";
+import {
+  adjustBalanceSchema,
+  transactionSchema,
+  type AdjustBalanceInput,
+  type TransactionInput,
+} from "@/lib/zod-schemas";
 
 const PATHS = ["/transactions", "/dashboard", "/wallets", "/budgets", "/reports"];
 
@@ -50,6 +57,42 @@ export async function updateTransaction(id: string, input: TransactionInput) {
     .update(transactions)
     .set(toValues(userId, parsed.data))
     .where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
+  revalidateAll();
+  return { success: true };
+}
+
+// Samakan saldo dompet dengan saldo asli: hitung selisih dari saldo
+// tercatat saat ini, lalu simpan sebagai satu transaksi tipe "adjustment"
+// (amount bisa negatif) supaya riwayatnya tetap tercatat, bukan menimpa data.
+export async function adjustWalletBalance(
+  walletId: string,
+  input: AdjustBalanceInput
+) {
+  const userId = await requireUserId();
+  const parsed = adjustBalanceSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
+  }
+
+  const walletList = await getWalletsWithBalances(userId);
+  const wallet = walletList.find((w) => w.id === walletId);
+  if (!wallet) return { error: "Dompet tidak ditemukan" };
+
+  const diff = parsed.data.actualBalance - wallet.balance;
+  if (diff === 0) {
+    return { error: "Saldo sudah sesuai, tidak ada yang perlu disesuaikan" };
+  }
+
+  await db.insert(transactions).values({
+    userId,
+    walletId,
+    categoryId: null,
+    type: "adjustment",
+    amount: String(diff),
+    date: todayString(),
+    note: parsed.data.note,
+    transferToWalletId: null,
+  });
   revalidateAll();
   return { success: true };
 }

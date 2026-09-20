@@ -11,7 +11,7 @@ import { TransactionsClient } from "./transactions-client";
 
 export const metadata: Metadata = { title: "Transaksi" };
 
-const TX_TYPES = ["income", "expense", "transfer"] as const;
+const TX_TYPES = ["income", "expense", "transfer", "adjustment"] as const;
 
 export default async function TransactionsPage({
   searchParams,

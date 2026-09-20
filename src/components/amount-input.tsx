@@ -28,13 +28,23 @@ export function AmountInput({
     }
   }, []);
 
+  // ref digabung sekali lewat useCallback (bukan arrow function inline) —
+  // kalau tidak, komponen yang re-render tiap ketikan (mis. field yang
+  // dipantau useWatch) memicu detach+reattach ref di setiap keystroke,
+  // yang mengacaukan pelacakan value asli React sehingga isi field bisa
+  // dobel/rusak.
+  const mergedRef = React.useCallback(
+    (el: HTMLInputElement | null) => {
+      innerRef.current = el;
+      if (typeof ref === "function") ref(el);
+      else if (ref) ref.current = el;
+    },
+    [ref]
+  );
+
   return (
     <Input
-      ref={(el: HTMLInputElement | null) => {
-        innerRef.current = el;
-        if (typeof ref === "function") ref(el);
-        else if (ref) ref.current = el;
-      }}
+      ref={mergedRef}
       type="text"
       inputMode="numeric"
       autoComplete="off"

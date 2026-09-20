@@ -70,7 +70,7 @@ export const verificationTokens = pgTable(
 
 export type WalletType = "cash" | "bank" | "ewallet";
 export type CategoryType = "income" | "expense";
-export type TransactionType = "income" | "expense" | "transfer";
+export type TransactionType = "income" | "expense" | "transfer" | "adjustment";
 
 // "Dompet" milik user: cash / rekening bank / e-wallet.
 // Dinamai wallets agar tidak bentrok dengan tabel auth_accounts milik NextAuth.

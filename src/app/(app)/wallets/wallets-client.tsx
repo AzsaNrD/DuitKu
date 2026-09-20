@@ -3,17 +3,10 @@
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { actionToast } from "@/lib/action-toast";
-import {
-  Banknote,
-  CreditCard,
-  Pencil,
-  Plus,
-  Smartphone,
-  Trash2,
-  Wallet as WalletIcon,
-} from "lucide-react";
+import { actionToast, type ActionResult } from "@/lib/action-toast";
+import { Pencil, Plus, Scale, Trash2, Wallet as WalletIcon } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
+import { AdjustBalanceDialog } from "@/components/adjust-balance-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,18 +34,29 @@ import {
 } from "@/components/ui/select";
 import { ColorPicker } from "@/components/color-picker";
 import { createWallet, updateWallet, deleteWallet } from "@/actions/wallets";
-import { walletSchema, type WalletInput } from "@/lib/zod-schemas";
+import {
+  walletSchema,
+  type AdjustBalanceInput,
+  type WalletInput,
+} from "@/lib/zod-schemas";
 import { formatIDR } from "@/lib/format";
+import {
+  WALLET_TYPE_ICONS,
+  WALLET_TYPE_LABELS,
+  WALLET_TYPE_ORDER,
+} from "@/lib/wallet-types";
 import type { WalletWithBalance } from "@/db/queries";
-import type { WalletType } from "@/db/schema";
 
-const WALLET_TYPE_META: Record<
-  WalletType,
-  { label: string; icon: typeof Banknote }
-> = {
-  cash: { label: "Cash", icon: Banknote },
-  bank: { label: "Bank", icon: CreditCard },
-  ewallet: { label: "E-Wallet", icon: Smartphone },
+// override untuk mode tanpa akun (localStorage): defaultnya action server
+// asli, jadi halaman yang sudah ada (login) tidak perlu berubah sama sekali
+export type WalletGuestActions = {
+  createWallet: (input: WalletInput) => Promise<ActionResult>;
+  updateWallet: (id: string, input: WalletInput) => Promise<ActionResult>;
+  deleteWallet: (id: string) => Promise<ActionResult>;
+  adjustWalletBalance: (
+    id: string,
+    input: AdjustBalanceInput
+  ) => Promise<ActionResult>;
 };
 
 const TYPE_ITEMS = [
@@ -61,12 +65,20 @@ const TYPE_ITEMS = [
   { value: "ewallet", label: "E-Wallet" },
 ];
 
-export function WalletsClient({ wallets }: { wallets: WalletWithBalance[] }) {
+export function WalletsClient({
+  wallets,
+  guest,
+}: {
+  wallets: WalletWithBalance[];
+  guest?: WalletGuestActions;
+}) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<WalletWithBalance | null>(null);
   const [deleting, setDeleting] = useState<WalletWithBalance | null>(null);
+  const [adjusting, setAdjusting] = useState<WalletWithBalance | null>(null);
 
   const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0);
+  const deleteWalletFn = guest?.deleteWallet ?? deleteWallet;
 
   function openCreate() {
     setEditing(null);
@@ -81,7 +93,7 @@ export function WalletsClient({ wallets }: { wallets: WalletWithBalance[] }) {
   function handleDelete() {
     if (!deleting) return;
     setDeleting(null);
-    actionToast(deleteWallet(deleting.id), {
+    actionToast(deleteWalletFn(deleting.id), {
       loading: "Menghapus dompet...",
       success: "Dompet dihapus",
     });
@@ -107,7 +119,7 @@ export function WalletsClient({ wallets }: { wallets: WalletWithBalance[] }) {
             <EmptyState
               icon={WalletIcon}
               title="Belum ada dompet"
-              description="Dompet adalah tempat uangmu berada — cash di saku, rekening bank, atau e-wallet. Tambahkan satu untuk mulai mencatat transaksi."
+              description="Dompet adalah tempat uangmu berada: cash di saku, rekening bank, atau e-wallet. Tambahkan satu untuk mulai mencatat transaksi."
               action={
                 <Button onClick={openCreate}>
                   <Plus /> Tambah Dompet Pertama
@@ -117,53 +129,81 @@ export function WalletsClient({ wallets }: { wallets: WalletWithBalance[] }) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
-          {wallets.map((wallet) => {
-            const meta = WALLET_TYPE_META[wallet.type];
-            const Icon = meta.icon;
+        <div className="space-y-7">
+          {WALLET_TYPE_ORDER.filter((type) =>
+            wallets.some((w) => w.type === type)
+          ).map((type) => {
+            const group = wallets.filter((w) => w.type === type);
+            const GroupIcon = WALLET_TYPE_ICONS[type];
+            const subtotal = group.reduce((sum, w) => sum + w.balance, 0);
             return (
-              <Card
-                key={wallet.id}
-                className="transition-all hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm"
-                      style={{ backgroundColor: wallet.color }}
-                    >
-                      <Icon className="h-5 w-5" />
+              <div key={type}>
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <GroupIcon className="h-4 w-4 text-muted-foreground" />
+                    {WALLET_TYPE_LABELS[type]}
+                    <span className="font-normal text-muted-foreground">
+                      ({group.length})
                     </span>
-                    <div>
-                      <CardTitle className="text-base">{wallet.name}</CardTitle>
-                      <p className="text-xs text-muted-foreground">
-                        {meta.label}
-                      </p>
-                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEdit(wallet)}
+                  <span className="money text-sm font-semibold text-muted-foreground">
+                    {formatIDR(subtotal)}
+                  </span>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+                  {group.map((wallet) => (
+                    <Card
+                      key={wallet.id}
+                      className="transition-all hover:-translate-y-0.5 hover:shadow-md"
                     >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleting(wallet)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="money text-2xl font-bold">
-                    {formatIDR(wallet.balance)}
-                  </p>
-                </CardContent>
-              </Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <div className="flex items-center gap-3">
+                          <span
+                            className="flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm"
+                            style={{ backgroundColor: wallet.color }}
+                          >
+                            <GroupIcon className="h-5 w-5" />
+                          </span>
+                          <CardTitle className="text-base">
+                            {wallet.name}
+                          </CardTitle>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Sesuaikan saldo"
+                            onClick={() => setAdjusting(wallet)}
+                          >
+                            <Scale className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit dompet"
+                            onClick={() => openEdit(wallet)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Hapus dompet"
+                            onClick={() => setDeleting(wallet)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="money text-2xl font-bold">
+                          {formatIDR(wallet.balance)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -174,6 +214,16 @@ export function WalletsClient({ wallets }: { wallets: WalletWithBalance[] }) {
           open={open}
           onOpenChange={setOpen}
           editing={editing}
+          guest={guest}
+        />
+      )}
+
+      {adjusting && (
+        <AdjustBalanceDialog
+          open={!!adjusting}
+          onOpenChange={(o) => !o && setAdjusting(null)}
+          wallet={adjusting}
+          adjustAction={guest?.adjustWalletBalance}
         />
       )}
 
@@ -205,10 +255,12 @@ function WalletFormDialog({
   open,
   onOpenChange,
   editing,
+  guest,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editing: WalletWithBalance | null;
+  guest?: WalletGuestActions;
 }) {
   const {
     register,
@@ -229,13 +281,12 @@ function WalletFormDialog({
 
   function onSubmit(data: WalletInput) {
     onOpenChange(false);
-    actionToast(
-      editing ? updateWallet(editing.id, data) : createWallet(data),
-      {
-        loading: "Menyimpan dompet...",
-        success: editing ? "Dompet diperbarui" : "Dompet ditambahkan",
-      }
-    );
+    const createFn = guest?.createWallet ?? createWallet;
+    const updateFn = guest?.updateWallet ?? updateWallet;
+    actionToast(editing ? updateFn(editing.id, data) : createFn(data), {
+      loading: "Menyimpan dompet...",
+      success: editing ? "Dompet diperbarui" : "Dompet ditambahkan",
+    });
   }
 
   return (

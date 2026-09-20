@@ -99,6 +99,14 @@ export const recurringSchema = z
     }
   );
 
+export const adjustBalanceSchema = z.object({
+  actualBalance: amountNonNegative,
+  note: z
+    .string()
+    .min(3, "Alasan minimal 3 karakter")
+    .max(255, "Alasan maksimal 255 karakter"),
+});
+
 export const budgetSchema = z.object({
   categoryId: z.string().min(1, "Pilih kategori"),
   month: z.string().regex(/^\d{4}-\d{2}$/, "Bulan tidak valid"),
@@ -122,6 +130,46 @@ export const goalSchema = z.object({
 export const goalSavingSchema = z.object({
   amount: amountPositive("Jumlah harus lebih dari 0"),
 });
+
+export type AdjustBalanceInput = z.infer<typeof adjustBalanceSchema>;
+// Bentuk data yang dikirim dari localStorage (mode tanpa akun) saat
+// migrasi ke akun asli — divalidasi ketat di server karena datang dari
+// klien dan bisa saja sudah diutak-atik.
+export const guestImportSchema = z.object({
+  wallets: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string().min(1).max(50),
+      type: z.enum(["cash", "bank", "ewallet"]),
+      initialBalance: z.string().regex(/^-?\d+$/),
+      color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    })
+  ),
+  categories: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string().min(1).max(50),
+      type: z.enum(["income", "expense"]),
+      icon: z.string().min(1),
+      color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      isDefault: z.boolean(),
+    })
+  ),
+  transactions: z.array(
+    z.object({
+      id: z.uuid(),
+      walletId: z.uuid(),
+      categoryId: z.uuid().nullable(),
+      type: z.enum(["income", "expense", "transfer", "adjustment"]),
+      amount: z.string().regex(/^-?\d+$/),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      note: z.string().nullable(),
+      transferToWalletId: z.uuid().nullable(),
+    })
+  ),
+});
+
+export type GuestImportInput = z.infer<typeof guestImportSchema>;
 
 export type BudgetInput = z.infer<typeof budgetSchema>;
 export type RecurringInput = z.infer<typeof recurringSchema>;

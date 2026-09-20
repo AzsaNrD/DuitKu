@@ -2,7 +2,7 @@
 
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { actionToast } from "@/lib/action-toast";
+import { actionToast, type ActionResult } from "@/lib/action-toast";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,9 +32,18 @@ import { transactionSchema, type TransactionInput } from "@/lib/zod-schemas";
 import { todayString } from "@/lib/format";
 import type { Category, Wallet, TransactionType } from "@/db/schema";
 
+// override untuk mode tanpa akun (localStorage) — defaultnya action server
+// asli, jadi halaman yang sudah ada (login) tidak perlu berubah sama sekali
+export type TransactionGuestActions = {
+  createTransaction: (input: TransactionInput) => Promise<ActionResult>;
+  updateTransaction: (id: string, input: TransactionInput) => Promise<ActionResult>;
+};
+
 export type EditableTransaction = {
   id: string;
-  type: TransactionType;
+  // "adjustment" tidak pernah dibuka lewat form ini (lihat R-26: tombol edit
+  // disembunyikan untuk baris penyesuaian di transactions-client.tsx)
+  type: Exclude<TransactionType, "adjustment">;
   amount: string | number;
   walletId: string;
   categoryId: string | null;
@@ -49,12 +58,14 @@ export function TransactionFormDialog({
   wallets,
   categories,
   editing,
+  guest,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   wallets: Pick<Wallet, "id" | "name">[];
   categories: Pick<Category, "id" | "name" | "type">[];
   editing?: EditableTransaction | null;
+  guest?: TransactionGuestActions;
 }) {
   const {
     register,
@@ -103,8 +114,10 @@ export function TransactionFormDialog({
   function onSubmit(data: TransactionInput) {
     // tutup dialog seketika; proses berjalan di latar dengan toast
     onOpenChange(false);
+    const createFn = guest?.createTransaction ?? createTransaction;
+    const updateFn = guest?.updateTransaction ?? updateTransaction;
     actionToast(
-      editing ? updateTransaction(editing.id, data) : createTransaction(data),
+      editing ? updateFn(editing.id, data) : createFn(data),
       {
         loading: "Menyimpan transaksi...",
         success: editing ? "Transaksi diperbarui" : "Transaksi dicatat",

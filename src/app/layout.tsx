@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "DuitKu — Catatan Keuangan Pribadi",
+    default: "DuitKu: Catatan Keuangan Pribadi",
     template: "%s | DuitKu",
   },
   description:

@@ -1,10 +1,15 @@
 import { toast } from "sonner";
 
+// Bentuk hasil yang seragam dipakai server action maupun fungsi guest-store
+// (mode tanpa akun), supaya keduanya bisa dipakai bergantian oleh komponen
+// yang sama lewat actionToast.
+export type ActionResult = { error?: string } | { success: boolean };
+
 // Jalankan server action di latar dengan toast loading → sukses/gagal.
 // Dipanggil SETELAH dialog ditutup supaya UI terasa instan;
 // kalau server menolak, user tetap diberi tahu lewat toast error.
 export function actionToast(
-  promise: Promise<{ error?: string } | { success: boolean }>,
+  promise: Promise<ActionResult>,
   messages: { loading: string; success: string }
 ) {
   toast.promise(

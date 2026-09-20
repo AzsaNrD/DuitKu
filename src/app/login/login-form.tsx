@@ -45,6 +45,9 @@ export function LoginForm() {
       );
       return;
     }
+    // tawaran pindahkan data mode tanpa-akun ditangani di (app)/layout.tsx
+    // (lihat GuestMigrationCheck) — bukan di sini, supaya request server
+    // action-nya tidak kena redirect proxy.ts untuk halaman /login
     router.push("/dashboard");
     router.refresh();
   }
@@ -100,6 +103,12 @@ export function LoginForm() {
           <Link href="/register" className="text-primary underline-offset-4 hover:underline">
             Daftar
           </Link>
+        </p>
+        <p className="text-center text-sm text-muted-foreground">
+          <Link href="/guest/dashboard" className="text-primary underline-offset-4 hover:underline">
+            Coba tanpa akun
+          </Link>
+          , data tersimpan di browser ini saja
         </p>
       </CardContent>
     </Card>

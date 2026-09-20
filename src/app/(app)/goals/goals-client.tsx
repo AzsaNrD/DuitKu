@@ -72,7 +72,7 @@ export function GoalsClient({ goals }: { goals: Goal[] }) {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Impian</h1>
           <p className="text-sm text-muted-foreground">
-            Target nabung untuk hal yang kamu inginkan — catat progresnya di
+            Target nabung untuk hal yang kamu inginkan, catat progresnya di
             sini
           </p>
         </div>
@@ -279,7 +279,7 @@ function GoalFormDialog({
         loading: "Menyimpan impian...",
         success: editing
           ? "Impian diperbarui"
-          : "Impian dibuat — semangat nabung!",
+          : "Impian dibuat, semangat nabung!",
       }
     );
   }
@@ -384,7 +384,7 @@ function SavingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nabung — {goal.name}</DialogTitle>
+          <DialogTitle>Nabung: {goal.name}</DialogTitle>
           <DialogDescription>
             Terkumpul {formatIDR(Number(goal.savedAmount))} dari{" "}
             {formatIDR(Number(goal.targetAmount))}. Catatan ini tidak mengubah

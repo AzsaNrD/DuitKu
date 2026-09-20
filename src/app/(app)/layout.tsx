@@ -6,6 +6,7 @@ import { SidebarNav, BottomNav } from "@/components/nav-links";
 import { BalanceToggle } from "@/components/balance-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
+import { GuestMigrationCheck } from "@/components/guest-migration-check";
 
 export default async function AppLayout({
   children,
@@ -63,6 +64,7 @@ export default async function AppLayout({
 
         <BottomNav />
       </div>
+      <GuestMigrationCheck />
     </SessionProvider>
   );
 }

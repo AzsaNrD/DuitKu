@@ -1,91 +1,63 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowDownLeft,
   ArrowLeftRight,
   ArrowUpRight,
+  Lock,
   PiggyBank,
-  Sparkles,
-  Target,
   Wallet as WalletIcon,
 } from "lucide-react";
-import { auth } from "@/auth";
-import { requireUserId } from "@/lib/require-user";
-import { processDueRecurring } from "@/lib/recurring";
 import {
-  getBudgetsWithSpent,
-  getExpenseByCategory,
-  getGoals,
-  getMonthSummary,
-  getTransactionsPage,
-  getUserCategories,
-  getWalletsWithBalances,
-} from "@/db/queries";
-import { currentHour, currentMonth, formatIDR, formatMonth } from "@/lib/format";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  computeExpenseByCategory,
+  computeMonthSummary,
+  computeRecentTransactions,
+  computeWalletsWithBalances,
+  useGuestData,
+} from "@/lib/guest-store";
+import { currentMonth, formatIDR, formatMonth } from "@/lib/format";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
-import { BudgetProgressItem } from "@/components/budget-progress";
 import { WalletSummaryList } from "@/components/wallet-summary-list";
 import { TransactionItem } from "@/app/(app)/transactions/transactions-client";
-import { QuickAddButton } from "./quick-add-button";
 
-export const metadata: Metadata = { title: "Dashboard" };
-
-function greeting() {
-  const hour = currentHour();
-  if (hour < 11) return "Selamat pagi";
-  if (hour < 15) return "Selamat siang";
-  if (hour < 19) return "Selamat sore";
-  return "Selamat malam";
-}
-
-export default async function DashboardPage() {
-  const userId = await requireUserId();
-  const session = await auth();
-  // catat transaksi berulang yang sudah jatuh tempo sebelum menampilkan data
-  await processDueRecurring(userId);
+export default function GuestDashboardPage() {
+  const data = useGuestData();
   const month = currentMonth();
 
-  const [wallets, summary, expenseByCategory, recent, budgets, categories, goals] =
-    await Promise.all([
-      getWalletsWithBalances(userId),
-      getMonthSummary(userId, month),
-      getExpenseByCategory(userId, month),
-      getTransactionsPage(userId, { pageSize: 8 }),
-      getBudgetsWithSpent(userId, month),
-      getUserCategories(userId),
-      getGoals(userId),
-    ]);
+  const wallets = useMemo(() => computeWalletsWithBalances(data), [data]);
+  const summary = useMemo(() => computeMonthSummary(data, month), [data, month]);
+  const expenseByCategory = useMemo(
+    () => computeExpenseByCategory(data, month),
+    [data, month]
+  );
+  const recent = useMemo(() => computeRecentTransactions(data, 8), [data]);
 
   const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0);
   const net = summary.income - summary.expense;
-  const firstName = session?.user?.name?.split(" ")[0];
 
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-            {greeting()}
-            {firstName ? `, ${firstName}` : ""} 👋
+            Mode tanpa akun
           </h1>
           <p className="text-sm text-muted-foreground md:text-base">
-            Ini ringkasan keuanganmu bulan {formatMonth(month)}
+            Ringkasan keuanganmu bulan {formatMonth(month)}, tersimpan di
+            browser ini saja
           </p>
         </div>
-        <QuickAddButton wallets={wallets} categories={categories} />
+        <Button nativeButton={false} render={<Link href="/guest/transactions" />}>
+          <ArrowLeftRight /> Catat Transaksi
+        </Button>
       </div>
 
-      {/* Kartu ringkasan */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
-        {/* Hero: total saldo */}
         <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 text-white sm:col-span-2 lg:col-span-1">
           <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10" />
           <div className="pointer-events-none absolute -bottom-10 -left-4 h-24 w-24 rounded-full bg-white/10" />
@@ -157,11 +129,10 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
-        {/* Saldo per dompet */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Dompet</CardTitle>
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/wallets" />}>
+            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/guest/wallets" />}>
               Kelola
             </Button>
           </CardHeader>
@@ -173,7 +144,7 @@ export default async function DashboardPage() {
                 title="Belum ada dompet"
                 description="Tambahkan cash, rekening bank, atau e-wallet untuk mulai mencatat."
                 action={
-                  <Button size="sm" nativeButton={false} render={<Link href="/wallets" />}>
+                  <Button size="sm" nativeButton={false} render={<Link href="/guest/wallets" />}>
                     Tambah Dompet
                   </Button>
                 }
@@ -184,12 +155,9 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Pie chart pengeluaran */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              Pengeluaran per Kategori
-            </CardTitle>
+            <CardTitle className="text-base">Pengeluaran per Kategori</CardTitle>
           </CardHeader>
           <CardContent>
             <ExpensePieChart
@@ -202,102 +170,15 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Budget bulan ini */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Budget Bulan Ini</CardTitle>
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/budgets" />}>
-              Kelola
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {budgets.length === 0 ? (
-              <EmptyState
-                compact
-                icon={Target}
-                title="Belum ada budget"
-                description="Batasi pengeluaran per kategori supaya lebih terkontrol."
-                action={
-                  <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/budgets" />}>
-                    Set Budget
-                  </Button>
-                }
-              />
-            ) : (
-              <div className="divide-y">
-                {budgets.map((budget) => (
-                  <BudgetProgressItem key={budget.id} budget={budget} />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Impian */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Impian</CardTitle>
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/goals" />}>
-              Kelola
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {goals.length === 0 ? (
-              <EmptyState
-                compact
-                icon={Sparkles}
-                title="Belum ada impian"
-                description="Pengen beli sesuatu? Bikin targetnya dan nabung sedikit demi sedikit."
-                action={
-                  <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/goals" />}>
-                    Buat Impian
-                  </Button>
-                }
-              />
-            ) : (
-              <div className="space-y-5">
-                {goals.slice(0, 4).map((goal) => {
-                  const target = Number(goal.targetAmount);
-                  const saved = Number(goal.savedAmount);
-                  const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
-                  const done = saved >= target;
-                  return (
-                    <div key={goal.id}>
-                      <div className="mb-1.5 flex items-center justify-between text-sm">
-                        <span className="font-medium">
-                          {goal.name} {done && "🎉"}
-                        </span>
-                        <span className="money text-xs text-muted-foreground">
-                          {formatIDR(saved)} / {formatIDR(target)}
-                        </span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${pct}%`,
-                            backgroundColor: done ? "#22c55e" : goal.color,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Transaksi terbaru */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Transaksi Terbaru</CardTitle>
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/transactions" />}>
+            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/guest/transactions" />}>
               Lihat Semua
             </Button>
           </CardHeader>
           <CardContent className="p-0 pb-2">
-            {recent.rows.length === 0 ? (
+            {recent.length === 0 ? (
               <EmptyState
                 compact
                 icon={ArrowLeftRight}
@@ -306,11 +187,30 @@ export default async function DashboardPage() {
               />
             ) : (
               <div className="divide-y">
-                {recent.rows.map((row) => (
+                {recent.map((row) => (
                   <TransactionItem key={row.id} row={row} />
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2 border-dashed">
+          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+            </span>
+            <div className="space-y-1">
+              <p className="font-medium">Budget, Impian & Transaksi Berulang perlu akun</p>
+              <p className="text-sm text-muted-foreground">
+                Fitur ini butuh penyimpanan yang lebih permanen. Daftar akun
+                gratis, dan data yang sudah kamu catat di sini bisa dipindahkan
+                otomatis.
+              </p>
+            </div>
+            <Button size="sm" nativeButton={false} render={<Link href="/register" />}>
+              Daftar Akun Gratis
+            </Button>
           </CardContent>
         </Card>
       </div>

@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "DuitKu — Catatan Keuangan Pribadi",
+    name: "DuitKu: Catatan Keuangan Pribadi",
     short_name: "DuitKu",
     description:
       "Catat uang masuk & keluar, kelola dompet, budget, dan impian.",

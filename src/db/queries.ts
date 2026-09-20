@@ -24,11 +24,12 @@ export async function getWalletsWithBalances(
       where: eq(wallets.userId, userId),
       orderBy: (w, { asc }) => [asc(w.createdAt)],
     }),
-    // income menambah, expense & transfer keluar mengurangi
+    // income & adjustment (nilainya sudah bertanda) menambah,
+    // expense & transfer keluar mengurangi
     db
       .select({
         walletId: transactions.walletId,
-        delta: sql<string>`sum(case when ${transactions.type} = 'income' then ${transactions.amount} else -${transactions.amount} end)`,
+        delta: sql<string>`sum(case when ${transactions.type} in ('income', 'adjustment') then ${transactions.amount} else -${transactions.amount} end)`,
       })
       .from(transactions)
       .where(eq(transactions.userId, userId))

@@ -138,10 +138,10 @@ export default async function ReportsPage({
               <p className="text-xs text-muted-foreground">
                 {savingRate.toFixed(0)}% dari pemasukan
                 {savingRate >= 20
-                  ? " — bagus, pertahankan! 🎉"
+                  ? " (bagus, pertahankan! 🎉)"
                   : savingRate >= 0
-                    ? " — coba tingkatkan ke 20%"
-                    : " — pengeluaran melebihi pemasukan ⚠️"}
+                    ? " (coba tingkatkan ke 20%)"
+                    : " (pengeluaran melebihi pemasukan ⚠️)"}
               </p>
             )}
           </CardContent>

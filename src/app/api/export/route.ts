@@ -4,11 +4,12 @@ import { getTransactionsPage } from "@/db/queries";
 import { todayString } from "@/lib/format";
 import type { TransactionType } from "@/db/schema";
 
-const TX_TYPES = ["income", "expense", "transfer"] as const;
+const TX_TYPES = ["income", "expense", "transfer", "adjustment"] as const;
 const TYPE_LABELS: Record<TransactionType, string> = {
   income: "Masuk",
   expense: "Keluar",
   transfer: "Transfer",
+  adjustment: "Penyesuaian",
 };
 
 function csvCell(value: string | null | undefined): string {
@@ -52,7 +53,13 @@ export async function GET(request: NextRequest) {
     [
       r.date,
       TYPE_LABELS[r.type],
-      csvCell(r.type === "transfer" ? "" : (r.categoryName ?? "Tanpa Kategori")),
+      csvCell(
+        r.type === "transfer"
+          ? ""
+          : r.type === "adjustment"
+            ? "Penyesuaian Saldo"
+            : (r.categoryName ?? "Tanpa Kategori")
+      ),
       csvCell(r.walletName),
       csvCell(r.transferToWalletName),
       r.amount,

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { actionToast } from "@/lib/action-toast";
+import { actionToast, type ActionResult } from "@/lib/action-toast";
 import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,21 @@ import { categorySchema, type CategoryInput } from "@/lib/zod-schemas";
 import type { Category, CategoryType } from "@/db/schema";
 import { cn } from "@/lib/utils";
 
-export function CategoriesClient({ categories }: { categories: Category[] }) {
+// override untuk mode tanpa akun (localStorage) — defaultnya action server
+// asli, jadi halaman yang sudah ada (login) tidak perlu berubah sama sekali
+export type CategoryGuestActions = {
+  createCategory: (input: CategoryInput) => Promise<ActionResult>;
+  updateCategory: (id: string, input: CategoryInput) => Promise<ActionResult>;
+  deleteCategory: (id: string) => Promise<ActionResult>;
+};
+
+export function CategoriesClient({
+  categories,
+  guest,
+}: {
+  categories: Category[];
+  guest?: CategoryGuestActions;
+}) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState<Category | null>(null);
@@ -54,7 +68,8 @@ export function CategoriesClient({ categories }: { categories: Category[] }) {
   function handleDelete() {
     if (!deleting) return;
     setDeleting(null);
-    actionToast(deleteCategory(deleting.id), {
+    const deleteFn = guest?.deleteCategory ?? deleteCategory;
+    actionToast(deleteFn(deleting.id), {
       loading: "Menghapus kategori...",
       success: "Kategori dihapus",
     });
@@ -110,6 +125,7 @@ export function CategoriesClient({ categories }: { categories: Category[] }) {
           onOpenChange={setOpen}
           editing={editing}
           defaultType={formType}
+          guest={guest}
         />
       )}
 
@@ -205,11 +221,13 @@ function CategoryFormDialog({
   onOpenChange,
   editing,
   defaultType,
+  guest,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editing: Category | null;
   defaultType: CategoryType;
+  guest?: CategoryGuestActions;
 }) {
   const {
     register,
@@ -230,8 +248,10 @@ function CategoryFormDialog({
 
   function onSubmit(data: CategoryInput) {
     onOpenChange(false);
+    const createFn = guest?.createCategory ?? createCategory;
+    const updateFn = guest?.updateCategory ?? updateCategory;
     actionToast(
-      editing ? updateCategory(editing.id, data) : createCategory(data),
+      editing ? updateFn(editing.id, data) : createFn(data),
       {
         loading: "Menyimpan kategori...",
         success: editing ? "Kategori diperbarui" : "Kategori ditambahkan",
