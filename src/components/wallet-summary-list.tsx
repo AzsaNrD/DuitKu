@@ -4,9 +4,10 @@ import type { WalletWithBalance } from "@/db/queries";
 
 // Ringkasan dompet di dashboard, dikelompokkan per tipe (Cash/Bank/E-Wallet)
 // supaya kartunya tidak makin memanjang ke bawah kalau dompetnya banyak:
-// tiap kelompok cuma menampilkan daftar dompetnya satu per satu kalau
-// jumlahnya sedikit (maks 3); kalau lebih, cukup subtotal + jumlah dompetnya
-// saja, rinciannya tetap bisa dilihat di halaman Dompet.
+// rincian per dompet hanya ditampilkan untuk kelompok berisi 2-3 dompet.
+// Kelompok berisi 1 dompet tidak perlu rincian (subtotalnya sama persis),
+// cukup nama dompetnya di samping judul; kelompok > 3 cukup subtotal saja,
+// rinciannya tetap bisa dilihat di halaman Dompet.
 export function WalletSummaryList({ wallets }: { wallets: WalletWithBalance[] }) {
   const groups = WALLET_TYPE_ORDER.map((type) => ({
     type,
@@ -17,24 +18,36 @@ export function WalletSummaryList({ wallets }: { wallets: WalletWithBalance[] })
     <div className="space-y-4">
       {groups.map(({ type, items }) => {
         const Icon = WALLET_TYPE_ICONS[type];
+        const label = WALLET_TYPE_LABELS[type];
         const subtotal = items.reduce((sum, w) => sum + w.balance, 0);
-        const showIndividual = items.length <= 3;
+        const showIndividual = items.length >= 2 && items.length <= 3;
+        const singleName =
+          items.length === 1 &&
+          items[0].name.trim().toLowerCase() !== label.toLowerCase()
+            ? items[0].name
+            : null;
 
         return (
           <div key={type}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
                   <Icon className="h-4 w-4 text-muted-foreground" />
                 </span>
-                <span className="text-sm font-medium">
-                  {WALLET_TYPE_LABELS[type]}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  ({items.length})
-                </span>
+                <span className="shrink-0 text-sm font-medium">{label}</span>
+                {singleName ? (
+                  <span className="truncate text-xs text-muted-foreground">
+                    {singleName}
+                  </span>
+                ) : (
+                  items.length > 1 && (
+                    <span className="text-xs text-muted-foreground">
+                      ({items.length})
+                    </span>
+                  )
+                )}
               </div>
-              <span className="money text-sm font-semibold">
+              <span className="money shrink-0 text-sm font-semibold">
                 {formatIDR(subtotal)}
               </span>
             </div>
