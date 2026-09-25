@@ -149,37 +149,6 @@ export const transactions = pgTable(
   ]
 );
 
-// TABEL LAMA, tidak dipakai aplikasi lagi: fitur Budget sudah digabung ke
-// Alokasi (lihat categoryLimits). Isinya sudah disalin ke category_limits;
-// definisinya dibiarkan di sini supaya `db:push` tidak diam-diam menghapus
-// tabel beserta datanya. Hapus bersama tabelnya kalau sudah yakin.
-export const budgets = pgTable(
-  "budgets",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    categoryId: text("category_id")
-      .notNull()
-      .references(() => categories.id, { onDelete: "cascade" }),
-    // format "YYYY-MM"
-    month: text("month").notNull(),
-    amount: numeric("amount", { precision: 14, scale: 0 }).notNull(),
-    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
-  },
-  (table) => [
-    index("budgets_user_month_idx").on(table.userId, table.month),
-    uniqueIndex("budgets_user_category_month_uq").on(
-      table.userId,
-      table.categoryId,
-      table.month
-    ),
-  ]
-);
-
 export type RecurringFrequency = "daily" | "weekly" | "monthly";
 
 // Aturan transaksi berulang (gaji, langganan, cicilan).
