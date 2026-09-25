@@ -4,6 +4,7 @@ import {
   ArrowDownLeft,
   ArrowLeftRight,
   ArrowUpRight,
+  Percent,
   PiggyBank,
   Sparkles,
   Target,
@@ -13,6 +14,7 @@ import { auth } from "@/auth";
 import { requireUserId } from "@/lib/require-user";
 import { processDueRecurring } from "@/lib/recurring";
 import {
+  getAllocationOverview,
   getBudgetsWithSpent,
   getExpenseByCategory,
   getGoals,
@@ -33,6 +35,10 @@ import { EmptyState } from "@/components/empty-state";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
 import { BudgetProgressItem } from "@/components/budget-progress";
 import { WalletSummaryList } from "@/components/wallet-summary-list";
+import {
+  AllocationBucketRow,
+  AllocationSplitBar,
+} from "@/components/allocation-progress";
 import { TransactionItem } from "@/app/(app)/transactions/transactions-client";
 import { QuickAddButton } from "./quick-add-button";
 
@@ -53,16 +59,25 @@ export default async function DashboardPage() {
   await processDueRecurring(userId);
   const month = currentMonth();
 
-  const [wallets, summary, expenseByCategory, recent, budgets, categories, goals] =
-    await Promise.all([
-      getWalletsWithBalances(userId),
-      getMonthSummary(userId, month),
-      getExpenseByCategory(userId, month),
-      getTransactionsPage(userId, { pageSize: 8 }),
-      getBudgetsWithSpent(userId, month),
-      getUserCategories(userId),
-      getGoals(userId),
-    ]);
+  const [
+    wallets,
+    summary,
+    expenseByCategory,
+    recent,
+    budgets,
+    categories,
+    goals,
+    allocation,
+  ] = await Promise.all([
+    getWalletsWithBalances(userId),
+    getMonthSummary(userId, month),
+    getExpenseByCategory(userId, month),
+    getTransactionsPage(userId, { pageSize: 8 }),
+    getBudgetsWithSpent(userId, month),
+    getUserCategories(userId),
+    getGoals(userId),
+    getAllocationOverview(userId, month),
+  ]);
 
   const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0);
   const net = summary.income - summary.expense;
@@ -157,6 +172,58 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+        {/* Alokasi pendapatan bulan ini */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Alokasi Bulan Ini</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/allocation" />}
+            >
+              {allocation.hasPlan ? "Detail" : "Atur"}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {allocation.hasPlan ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    Dari pemasukan{" "}
+                    <span className="money font-semibold text-foreground">
+                      {formatIDR(allocation.income.used)}
+                    </span>
+                  </p>
+                  {allocation.income.used === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Belum ada pemasukan tercatat bulan ini
+                    </p>
+                  )}
+                </div>
+                <AllocationSplitBar buckets={allocation.buckets} />
+                <div className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {allocation.buckets.map((bucket) => (
+                    <AllocationBucketRow key={bucket.id} bucket={bucket} compact />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                compact
+                icon={Percent}
+                title="Belum ada rencana alokasi"
+                description="Bagi pemasukan ke kebutuhan, keinginan, dan tabungan, lalu pantau realisasinya tiap bulan."
+                action={
+                  <Button size="sm" nativeButton={false} render={<Link href="/allocation" />}>
+                    Atur Alokasi Gaji
+                  </Button>
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
+
         {/* Saldo per dompet */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

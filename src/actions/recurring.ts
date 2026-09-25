@@ -7,7 +7,7 @@ import { recurringRules } from "@/db/schema";
 import { requireUserId } from "@/lib/require-user";
 import { recurringSchema, type RecurringInput } from "@/lib/zod-schemas";
 
-const PATHS = ["/recurring", "/transactions", "/dashboard", "/wallets", "/budgets", "/reports"];
+const PATHS = ["/recurring", "/transactions", "/dashboard", "/wallets", "/budgets", "/reports", "/allocation"];
 
 function revalidateAll() {
   PATHS.forEach((p) => revalidatePath(p));

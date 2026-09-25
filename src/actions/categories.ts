@@ -7,7 +7,7 @@ import { categories } from "@/db/schema";
 import { requireUserId } from "@/lib/require-user";
 import { categorySchema, type CategoryInput } from "@/lib/zod-schemas";
 
-const PATHS = ["/categories", "/dashboard", "/transactions", "/budgets", "/reports"];
+const PATHS = ["/categories", "/dashboard", "/transactions", "/budgets", "/reports", "/allocation"];
 
 function revalidateAll() {
   PATHS.forEach((p) => revalidatePath(p));

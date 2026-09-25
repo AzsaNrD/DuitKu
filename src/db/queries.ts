@@ -1,13 +1,29 @@
-import { and, desc, eq, gte, ilike, lte, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  lte,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
+  allocationBuckets,
+  allocationCategoryLinks,
+  allocationIncomeCategories,
+  allocationIncomeOverrides,
+  allocationWalletLinks,
   budgets,
   categories,
   goals,
   recurringRules,
   transactions,
   wallets,
+  type AllocationBucket,
   type TransactionType,
   type Wallet,
 } from "@/db/schema";
@@ -357,4 +373,194 @@ export async function getUserCategories(userId: string) {
     where: eq(categories.userId, userId),
     orderBy: (c, { asc }) => [asc(c.type), asc(c.name)],
   });
+}
+
+// ---------- Alokasi pendapatan ----------
+
+export type AllocationPlan = {
+  buckets: AllocationBucket[];
+  categoryLinks: { categoryId: string; bucketId: string }[];
+  walletLinks: { walletId: string; bucketId: string }[];
+  incomeCategoryIds: string[];
+};
+
+export async function getAllocationPlan(userId: string): Promise<AllocationPlan> {
+  const [buckets, categoryLinks, walletLinks, incomeCategories] =
+    await Promise.all([
+      db.query.allocationBuckets.findMany({
+        where: eq(allocationBuckets.userId, userId),
+        orderBy: (b, { asc }) => [asc(b.sortOrder), asc(b.createdAt)],
+      }),
+      db
+        .select({
+          categoryId: allocationCategoryLinks.categoryId,
+          bucketId: allocationCategoryLinks.bucketId,
+        })
+        .from(allocationCategoryLinks)
+        .where(eq(allocationCategoryLinks.userId, userId)),
+      db
+        .select({
+          walletId: allocationWalletLinks.walletId,
+          bucketId: allocationWalletLinks.bucketId,
+        })
+        .from(allocationWalletLinks)
+        .where(eq(allocationWalletLinks.userId, userId)),
+      db
+        .select({ categoryId: allocationIncomeCategories.categoryId })
+        .from(allocationIncomeCategories)
+        .where(eq(allocationIncomeCategories.userId, userId)),
+    ]);
+
+  return {
+    buckets,
+    categoryLinks,
+    walletLinks,
+    incomeCategoryIds: incomeCategories.map((r) => r.categoryId),
+  };
+}
+
+export type AllocationBucketProgress = AllocationBucket & {
+  planned: number;
+  actual: number;
+  // jumlah kategori (pos pengeluaran) atau dompet (pos tabungan) yang terpetakan
+  linkedCount: number;
+};
+
+export type AllocationOverview = {
+  hasPlan: boolean;
+  income: {
+    auto: number;
+    override: number | null;
+    used: number;
+    sourceCount: number;
+  };
+  buckets: AllocationBucketProgress[];
+  unmapped: { total: number; items: { name: string; total: number }[] };
+};
+
+// Rencana vs realisasi satu bulan:
+// - pemasukan = transaksi income bulan itu di kategori terpilih (atau override)
+// - pos pengeluaran = expense bulan itu di kategori yang dipetakan ke pos
+// - pos tabungan = transfer masuk ke dompet pos dikurangi transfer keluar
+//   darinya (transfer antar dompet dalam pos yang sama tidak dihitung)
+// Transaksi adjustment tidak ikut karena semua filter di sini per-tipe.
+export async function getAllocationOverview(
+  userId: string,
+  month: string,
+  plan?: AllocationPlan
+): Promise<AllocationOverview> {
+  const p = plan ?? (await getAllocationPlan(userId));
+  const emptyIncome = {
+    auto: 0,
+    override: null,
+    used: 0,
+    sourceCount: p.incomeCategoryIds.length,
+  };
+  if (p.buckets.length === 0) {
+    return {
+      hasPlan: false,
+      income: emptyIncome,
+      buckets: [],
+      unmapped: { total: 0, items: [] },
+    };
+  }
+
+  const [incomeRows, override, expenseByCategory, transfers] =
+    await Promise.all([
+      p.incomeCategoryIds.length > 0
+        ? db
+            .select({
+              total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
+            })
+            .from(transactions)
+            .where(
+              and(
+                eq(transactions.userId, userId),
+                eq(transactions.type, "income"),
+                eq(monthOf, month),
+                inArray(transactions.categoryId, p.incomeCategoryIds)
+              )
+            )
+        : Promise.resolve([{ total: "0" }]),
+      db.query.allocationIncomeOverrides.findFirst({
+        where: and(
+          eq(allocationIncomeOverrides.userId, userId),
+          eq(allocationIncomeOverrides.month, month)
+        ),
+      }),
+      getExpenseByCategory(userId, month),
+      db
+        .select({
+          walletId: transactions.walletId,
+          transferToWalletId: transactions.transferToWalletId,
+          amount: transactions.amount,
+        })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.type, "transfer"),
+            eq(monthOf, month)
+          )
+        ),
+    ]);
+
+  const auto = Number(incomeRows[0]?.total ?? 0);
+  const overrideAmount = override ? Number(override.amount) : null;
+  const used = overrideAmount ?? auto;
+
+  const categoryToBucket = new Map(
+    p.categoryLinks.map((l) => [l.categoryId, l.bucketId])
+  );
+  const walletToBucket = new Map(
+    p.walletLinks.map((l) => [l.walletId, l.bucketId])
+  );
+  const expenseBucketIds = new Set(
+    p.buckets.filter((b) => b.kind === "expense").map((b) => b.id)
+  );
+
+  const actual = new Map<string, number>();
+  const unmappedItems: { name: string; total: number }[] = [];
+
+  for (const row of expenseByCategory) {
+    const bucketId = row.categoryId
+      ? categoryToBucket.get(row.categoryId)
+      : undefined;
+    if (bucketId && expenseBucketIds.has(bucketId)) {
+      actual.set(bucketId, (actual.get(bucketId) ?? 0) + row.total);
+    } else {
+      unmappedItems.push({ name: row.name, total: row.total });
+    }
+  }
+
+  for (const t of transfers) {
+    const from = walletToBucket.get(t.walletId);
+    const to = t.transferToWalletId
+      ? walletToBucket.get(t.transferToWalletId)
+      : undefined;
+    if (from === to) continue;
+    const amount = Number(t.amount);
+    if (to) actual.set(to, (actual.get(to) ?? 0) + amount);
+    if (from) actual.set(from, (actual.get(from) ?? 0) - amount);
+  }
+
+  const buckets: AllocationBucketProgress[] = p.buckets.map((b) => ({
+    ...b,
+    planned: Math.round((used * b.percent) / 100),
+    actual: actual.get(b.id) ?? 0,
+    linkedCount:
+      b.kind === "expense"
+        ? p.categoryLinks.filter((l) => l.bucketId === b.id).length
+        : p.walletLinks.filter((l) => l.bucketId === b.id).length,
+  }));
+
+  return {
+    hasPlan: true,
+    income: { ...emptyIncome, auto, override: overrideAmount, used },
+    buckets,
+    unmapped: {
+      total: unmappedItems.reduce((s, i) => s + i.total, 0),
+      items: unmappedItems,
+    },
+  };
 }

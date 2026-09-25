@@ -201,7 +201,9 @@ export default function GuestDashboardPage() {
               <Lock className="h-5 w-5 text-muted-foreground" />
             </span>
             <div className="space-y-1">
-              <p className="font-medium">Budget, Impian & Transaksi Berulang perlu akun</p>
+              <p className="font-medium">
+                Budget, Alokasi, Impian & Transaksi Berulang perlu akun
+              </p>
               <p className="text-sm text-muted-foreground">
                 Fitur ini butuh penyimpanan yang lebih permanen. Daftar akun
                 gratis, dan data yang sudah kamu catat di sini bisa dipindahkan

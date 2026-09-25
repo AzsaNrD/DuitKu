@@ -131,7 +131,44 @@ export const goalSavingSchema = z.object({
   amount: amountPositive("Jumlah harus lebih dari 0"),
 });
 
+export const allocationBucketSchema = z.object({
+  // kosong = pos baru
+  id: z.string().optional(),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Nama pos wajib diisi")
+    .max(40, "Nama pos maksimal 40 karakter"),
+  percent: z.coerce
+    .number<number>()
+    .int("Persen harus bilangan bulat")
+    .min(1, "Persen minimal 1")
+    .max(100, "Persen maksimal 100"),
+  kind: z.enum(["expense", "savings"]),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Warna tidak valid"),
+});
+
+export const allocationBucketsSchema = z
+  .object({
+    buckets: z
+      .array(allocationBucketSchema)
+      .min(1, "Minimal satu pos")
+      .max(8, "Maksimal 8 pos"),
+  })
+  .refine((d) => d.buckets.reduce((s, b) => s + b.percent, 0) === 100, {
+    message: "Total persen semua pos harus 100%",
+    path: ["buckets"],
+  });
+
+export const allocationOverrideSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, "Bulan tidak valid"),
+  amount: amountNonNegative,
+});
+
 export type AdjustBalanceInput = z.infer<typeof adjustBalanceSchema>;
+export type AllocationBucketInput = z.infer<typeof allocationBucketSchema>;
+export type AllocationBucketsInput = z.infer<typeof allocationBucketsSchema>;
+export type AllocationOverrideInput = z.infer<typeof allocationOverrideSchema>;
 // Bentuk data yang dikirim dari localStorage (mode tanpa akun) saat
 // migrasi ke akun asli — divalidasi ketat di server karena datang dari
 // klien dan bisa saja sudah diutak-atik.

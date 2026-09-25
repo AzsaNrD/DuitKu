@@ -254,6 +254,106 @@ export const goals = pgTable(
   (table) => [index("goals_user_id_idx").on(table.userId)]
 );
 
+export type AllocationBucketKind = "expense" | "savings";
+
+// Rencana alokasi pendapatan (mis. 50/30/20): satu set pos per user yang
+// berlaku di semua bulan; nominal tiap pos dihitung dari pemasukan bulan itu.
+// Pemetaan kategori/dompet ada di tabel terpisah (bukan kolom baru di
+// categories/wallets) supaya tipe Category/Wallet yang dipakai guest-store
+// tidak ikut berubah.
+export const allocationBuckets = pgTable(
+  "allocation_buckets",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    percent: integer("percent").notNull(),
+    kind: text("kind").$type<AllocationBucketKind>().notNull(),
+    color: text("color").notNull().default("#6366f1"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [index("allocation_buckets_user_id_idx").on(table.userId)]
+);
+
+// categoryId sebagai PK: satu kategori pengeluaran hanya bisa di satu pos
+export const allocationCategoryLinks = pgTable(
+  "allocation_category_links",
+  {
+    categoryId: text("category_id")
+      .primaryKey()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    bucketId: text("bucket_id")
+      .notNull()
+      .references(() => allocationBuckets.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("allocation_category_links_user_id_idx").on(table.userId)]
+);
+
+// walletId sebagai PK: satu dompet tabungan hanya bisa di satu pos
+export const allocationWalletLinks = pgTable(
+  "allocation_wallet_links",
+  {
+    walletId: text("wallet_id")
+      .primaryKey()
+      .references(() => wallets.id, { onDelete: "cascade" }),
+    bucketId: text("bucket_id")
+      .notNull()
+      .references(() => allocationBuckets.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("allocation_wallet_links_user_id_idx").on(table.userId)]
+);
+
+// kategori pemasukan yang dijumlah sebagai dasar pembagian
+export const allocationIncomeCategories = pgTable(
+  "allocation_income_categories",
+  {
+    categoryId: text("category_id")
+      .primaryKey()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    index("allocation_income_categories_user_id_idx").on(table.userId),
+  ]
+);
+
+// nominal pemasukan yang diketik manual untuk satu bulan (menimpa hitungan
+// otomatis bulan itu saja)
+export const allocationIncomeOverrides = pgTable(
+  "allocation_income_overrides",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // format "YYYY-MM"
+    month: text("month").notNull(),
+    amount: numeric("amount", { precision: 14, scale: 0 }).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("allocation_income_overrides_user_month_uq").on(
+      table.userId,
+      table.month
+    ),
+  ]
+);
+
 export type User = typeof users.$inferSelect;
 export type Wallet = typeof wallets.$inferSelect;
 export type Category = typeof categories.$inferSelect;
@@ -261,3 +361,4 @@ export type Transaction = typeof transactions.$inferSelect;
 export type Budget = typeof budgets.$inferSelect;
 export type RecurringRule = typeof recurringRules.$inferSelect;
 export type Goal = typeof goals.$inferSelect;
+export type AllocationBucket = typeof allocationBuckets.$inferSelect;

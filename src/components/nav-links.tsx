@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   ChartPie,
   LayoutDashboard,
+  Percent,
   PiggyBank,
   Repeat,
   Tags,
@@ -15,7 +16,8 @@ import {
 import { cn } from "@/lib/utils";
 
 // mobileHidden: bottom nav di HP hanya muat 6 item;
-// halaman berulang tetap bisa diakses dari halaman Transaksi
+// halaman berulang tetap bisa diakses dari halaman Transaksi,
+// halaman alokasi dari kartu Alokasi di dashboard
 export const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transaksi", icon: ArrowLeftRight },
@@ -23,6 +25,7 @@ export const NAV_ITEMS = [
   { href: "/wallets", label: "Dompet", icon: Wallet },
   { href: "/categories", label: "Kategori", icon: Tags },
   { href: "/budgets", label: "Budget", icon: Target },
+  { href: "/allocation", label: "Alokasi", icon: Percent, mobileHidden: true },
   { href: "/goals", label: "Impian", icon: PiggyBank, mobileHidden: true },
   { href: "/reports", label: "Laporan", icon: ChartPie },
 ] as const;

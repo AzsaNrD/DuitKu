@@ -14,6 +14,7 @@ const PATHS = [
   "/categories",
   "/budgets",
   "/reports",
+  "/allocation",
 ];
 
 // Pindahkan data yang sebelumnya tercatat di localStorage (mode tanpa akun)
