@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Nav mode tanpa akun sengaja lebih pendek dari (app)/layout.tsx: Budget,
+// Nav mode tanpa akun sengaja lebih pendek dari (app)/layout.tsx: Alokasi,
 // Impian, Transaksi Berulang, dan Laporan grafik lengkap butuh logika yang
 // terlalu rumit untuk direplikasi murni di localStorage (lihat percakapan
 // fitur ini), jadi belum tersedia di sini.

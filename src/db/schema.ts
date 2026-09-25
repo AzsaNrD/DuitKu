@@ -149,6 +149,10 @@ export const transactions = pgTable(
   ]
 );
 
+// TABEL LAMA, tidak dipakai aplikasi lagi: fitur Budget sudah digabung ke
+// Alokasi (lihat categoryLimits). Isinya sudah disalin ke category_limits;
+// definisinya dibiarkan di sini supaya `db:push` tidak diam-diam menghapus
+// tabel beserta datanya. Hapus bersama tabelnya kalau sudah yakin.
 export const budgets = pgTable(
   "budgets",
   {
@@ -232,7 +236,9 @@ export const rateLimits = pgTable(
 );
 
 // Target nabung / impian (mis. "Mouse gaming Rp 500rb").
-// savedAmount adalah catatan progres manual — tidak mengubah saldo dompet.
+// Kalau walletId diisi, progresnya = saldo dompet itu (otomatis); kalau
+// kosong, progresnya dari savedAmount yang dicatat manual. Keduanya tidak
+// mengubah saldo dompet mana pun.
 export const goals = pgTable(
   "goals",
   {
@@ -247,6 +253,9 @@ export const goals = pgTable(
     savedAmount: numeric("saved_amount", { precision: 14, scale: 0 })
       .notNull()
       .default("0"),
+    walletId: text("wallet_id").references(() => wallets.id, {
+      onDelete: "set null",
+    }),
     color: text("color").notNull().default("#6366f1"),
     targetDate: date("target_date", { mode: "string" }),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
@@ -330,6 +339,22 @@ export const allocationIncomeCategories = pgTable(
   ]
 );
 
+// Batas pengeluaran per kategori (pengganti fitur Budget lama). Berlaku
+// setiap bulan, tidak perlu diisi ulang; ditampilkan di rincian pos Alokasi.
+export const categoryLimits = pgTable(
+  "category_limits",
+  {
+    categoryId: text("category_id")
+      .primaryKey()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    amount: numeric("amount", { precision: 14, scale: 0 }).notNull(),
+  },
+  (table) => [index("category_limits_user_id_idx").on(table.userId)]
+);
+
 // nominal pemasukan yang diketik manual untuk satu bulan (menimpa hitungan
 // otomatis bulan itu saja)
 export const allocationIncomeOverrides = pgTable(
@@ -358,7 +383,6 @@ export type User = typeof users.$inferSelect;
 export type Wallet = typeof wallets.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
-export type Budget = typeof budgets.$inferSelect;
 export type RecurringRule = typeof recurringRules.$inferSelect;
 export type Goal = typeof goals.$inferSelect;
 export type AllocationBucket = typeof allocationBuckets.$inferSelect;

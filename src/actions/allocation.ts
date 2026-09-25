@@ -11,6 +11,7 @@ import {
   allocationIncomeOverrides,
   allocationWalletLinks,
   categories,
+  categoryLimits,
   wallets,
 } from "@/db/schema";
 import { requireUserId } from "@/lib/require-user";
@@ -22,8 +23,10 @@ import {
 import {
   allocationBucketsSchema,
   allocationOverrideSchema,
+  categoryLimitSchema,
   type AllocationBucketsInput,
   type AllocationOverrideInput,
+  type CategoryLimitInput,
 } from "@/lib/zod-schemas";
 
 const PATHS = ["/allocation", "/dashboard"];
@@ -252,6 +255,46 @@ export async function setAllocationWalletBucket(
   if (bucketId) {
     await db.insert(allocationWalletLinks).values({ walletId, bucketId, userId });
   }
+
+  revalidateAll();
+  return { success: true };
+}
+
+async function findUserExpenseCategory(userId: string, categoryId: string) {
+  const category = await db.query.categories.findFirst({
+    where: and(eq(categories.id, categoryId), eq(categories.userId, userId)),
+  });
+  return category?.type === "expense" ? category : null;
+}
+
+// Batas pengeluaran per kategori, berlaku tiap bulan (pengganti Budget lama)
+export async function setCategoryLimit(input: CategoryLimitInput) {
+  const userId = await requireUserId();
+  const parsed = categoryLimitSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
+  }
+  const category = await findUserExpenseCategory(userId, parsed.data.categoryId);
+  if (!category) return { error: "Kategori tidak ditemukan" };
+
+  const amount = String(parsed.data.amount);
+  await db
+    .insert(categoryLimits)
+    .values({ categoryId: category.id, userId, amount })
+    .onConflictDoUpdate({ target: categoryLimits.categoryId, set: { amount } });
+
+  revalidateAll();
+  return { success: true };
+}
+
+export async function clearCategoryLimit(categoryId: string) {
+  const userId = await requireUserId();
+  const category = await findUserExpenseCategory(userId, categoryId);
+  if (!category) return { error: "Kategori tidak ditemukan" };
+
+  await db
+    .delete(categoryLimits)
+    .where(eq(categoryLimits.categoryId, category.id));
 
   revalidateAll();
   return { success: true };

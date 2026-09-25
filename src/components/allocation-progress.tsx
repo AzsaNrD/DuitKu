@@ -28,14 +28,19 @@ export function AllocationSplitBar({
   );
 }
 
-// Pos pengeluaran memakai ambang warna yang sama dengan BudgetProgressItem
-// (hijau < 75%, kuning 75-100%, merah > 100%). Pos tabungan kebalikannya:
-// mencapai target itu bagus (hijau), belum tercapai netral.
-function barColor(kind: AllocationBucketProgress["kind"], pct: number) {
-  if (kind === "savings") return pct >= 100 ? "bg-green-500" : "bg-primary";
+// Pengeluaran (pos maupun batas per kategori): hijau < 75%, kuning 75-100%,
+// merah > 100%.
+export function spendingBarColor(pct: number) {
   if (pct > 100) return "bg-red-500";
   if (pct >= 75) return "bg-yellow-500";
   return "bg-green-500";
+}
+
+// Pos tabungan kebalikannya: mencapai target itu bagus (hijau), belum
+// tercapai netral.
+function barColor(kind: AllocationBucketProgress["kind"], pct: number) {
+  if (kind === "savings") return pct >= 100 ? "bg-green-500" : "bg-primary";
+  return spendingBarColor(pct);
 }
 
 function statusText(bucket: AllocationBucketProgress) {

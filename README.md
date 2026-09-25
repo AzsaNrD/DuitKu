@@ -1,6 +1,6 @@
 # DuitKu — Catatan Keuangan Pribadi
 
-Aplikasi web untuk mencatat uang masuk/keluar, mengelola dompet (cash, bank, e-wallet), budget bulanan, dan laporan keuangan. Dibangun dengan teknologi gratis: Next.js + Neon Postgres + Vercel.
+Aplikasi web untuk mencatat uang masuk/keluar, mengelola dompet (cash, bank, e-wallet), alokasi gaji, impian, dan laporan keuangan. Dibangun dengan teknologi gratis: Next.js + Neon Postgres + Vercel.
 
 ## Fitur
 
@@ -8,7 +8,11 @@ Aplikasi web untuk mencatat uang masuk/keluar, mengelola dompet (cash, bank, e-w
 - 👛 **Multi dompet** — cash, rekening bank, e-wallet; saldo terhitung otomatis
 - 📝 **Catat transaksi** — pemasukan, pengeluaran, dan transfer antar dompet
 - 🏷️ **Kategori custom** — 12 kategori bawaan + bisa tambah sendiri (ikon & warna)
-- 🎯 **Budget bulanan** — batas pengeluaran per kategori dengan indikator hijau/kuning/merah
+- ⚖️ **Sesuaikan saldo** — masukkan saldo sebenarnya, selisihnya tercatat sebagai penyesuaian
+- 📐 **Alokasi gaji** — preset 50/30/20, 70/20/10, 40/30/20/10 atau buat sendiri; rencana vs realisasi per pos, plus batas pengeluaran per kategori (hijau/kuning/merah)
+- 🐷 **Impian** — target tabungan, progres manual atau mengikuti saldo dompet
+- 🔁 **Transaksi berulang** — gaji, tagihan, langganan tercatat otomatis sesuai jadwal
+- 👤 **Mode tanpa akun** — data di browser, bisa diunduh sebagai cadangan JSON/CSV dan dipindah ke akun
 - 📊 **Dashboard & laporan** — grafik pengeluaran per kategori, perbandingan antar bulan, saving rate
 - 🌓 **Tema light/dark**
 - 📱 Responsif (mobile-friendly, ada bottom navigation)

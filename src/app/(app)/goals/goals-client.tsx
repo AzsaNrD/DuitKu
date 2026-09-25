@@ -32,6 +32,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AmountInput } from "@/components/amount-input";
 import { QuickAmounts } from "@/components/quick-amounts";
 import { ColorPicker } from "@/components/color-picker";
@@ -49,13 +56,22 @@ import {
 } from "@/lib/zod-schemas";
 import { formatIDR, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Goal } from "@/db/schema";
+import type { GoalWithProgress } from "@/db/queries";
+import type { Wallet } from "@/db/schema";
 
-export function GoalsClient({ goals }: { goals: Goal[] }) {
+const MANUAL = "__manual__";
+
+export function GoalsClient({
+  goals,
+  wallets,
+}: {
+  goals: GoalWithProgress[];
+  wallets: Wallet[];
+}) {
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Goal | null>(null);
-  const [saving, setSaving] = useState<Goal | null>(null);
-  const [deleting, setDeleting] = useState<Goal | null>(null);
+  const [editing, setEditing] = useState<GoalWithProgress | null>(null);
+  const [saving, setSaving] = useState<GoalWithProgress | null>(null);
+  const [deleting, setDeleting] = useState<GoalWithProgress | null>(null);
 
   function handleDelete() {
     if (!deleting) return;
@@ -72,8 +88,8 @@ export function GoalsClient({ goals }: { goals: Goal[] }) {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Impian</h1>
           <p className="text-sm text-muted-foreground">
-            Target nabung untuk hal yang kamu inginkan, catat progresnya di
-            sini
+            Target nabung untuk hal yang kamu inginkan. Progresnya bisa ikut
+            saldo dompet tabungan, atau dicatat manual.
           </p>
         </div>
         <Button
@@ -110,7 +126,7 @@ export function GoalsClient({ goals }: { goals: Goal[] }) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
           {goals.map((goal) => {
             const target = Number(goal.targetAmount);
-            const saved = Number(goal.savedAmount);
+            const saved = goal.saved;
             const pct = target > 0 ? (saved / target) * 100 : 0;
             const done = saved >= target;
             return (
@@ -186,18 +202,28 @@ export function GoalsClient({ goals }: { goals: Goal[] }) {
                       {!done && ` · kurang ${formatIDR(target - saved)}`}
                     </p>
                   </div>
+                  {goal.walletId && (
+                    <p className="text-xs text-muted-foreground">
+                      Progres mengikuti saldo dompet{" "}
+                      <span className="font-medium text-foreground">
+                        {goal.walletName}
+                      </span>
+                    </p>
+                  )}
                   {done ? (
                     <Badge className="bg-green-600 text-white">
                       🎉 Tercapai! Saatnya beli
                     </Badge>
                   ) : (
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setSaving(goal)}
-                    >
-                      <PiggyBank /> Nabung
-                    </Button>
+                    !goal.walletId && (
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setSaving(goal)}
+                      >
+                        <PiggyBank /> Nabung
+                      </Button>
+                    )
                   )}
                 </CardContent>
               </Card>
@@ -211,6 +237,7 @@ export function GoalsClient({ goals }: { goals: Goal[] }) {
           open={formOpen}
           onOpenChange={setFormOpen}
           editing={editing}
+          wallets={wallets}
         />
       )}
 
@@ -249,10 +276,12 @@ function GoalFormDialog({
   open,
   onOpenChange,
   editing,
+  wallets,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  editing: Goal | null;
+  editing: GoalWithProgress | null;
+  wallets: Wallet[];
 }) {
   const {
     register,
@@ -267,9 +296,21 @@ function GoalFormDialog({
           targetAmount: Number(editing.targetAmount),
           color: editing.color,
           targetDate: editing.targetDate ?? "",
+          walletId: editing.walletId ?? "",
         }
-      : { name: "", targetAmount: undefined, color: "#6366f1", targetDate: "" },
+      : {
+          name: "",
+          targetAmount: undefined,
+          color: "#6366f1",
+          targetDate: "",
+          walletId: "",
+        },
   });
+
+  const sourceItems = [
+    { value: MANUAL, label: "Catat manual" },
+    ...wallets.map((w) => ({ value: w.id, label: `Saldo dompet ${w.name}` })),
+  ];
 
   function onSubmit(data: GoalInput) {
     onOpenChange(false);
@@ -290,7 +331,8 @@ function GoalFormDialog({
         <DialogHeader>
           <DialogTitle>{editing ? "Edit Impian" : "Impian Baru"}</DialogTitle>
           <DialogDescription>
-            Tentukan target, lalu catat setiap kali kamu menyisihkan uang.
+            Tentukan target. Progresnya bisa otomatis dari saldo dompet
+            tabungan, atau dicatat manual setiap kali kamu menyisihkan uang.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -324,6 +366,37 @@ function GoalFormDialog({
               <Label htmlFor="goal-date">Target Tanggal (opsional)</Label>
               <Input id="goal-date" type="date" {...register("targetDate")} />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Sumber progres</Label>
+            <Controller
+              control={control}
+              name="walletId"
+              render={({ field }) => (
+                <Select
+                  items={sourceItems}
+                  value={field.value || MANUAL}
+                  onValueChange={(v) =>
+                    field.onChange(!v || v === MANUAL ? "" : (v as string))
+                  }
+                >
+                  <SelectTrigger aria-label="Sumber progres" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sourceItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              Pilih dompet khusus tabungan supaya progresnya selalu sama
+              dengan saldo dompet itu.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Warna</Label>
@@ -360,7 +433,7 @@ function SavingDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  goal: Goal;
+  goal: GoalWithProgress;
 }) {
   const [direction, setDirection] = useState<1 | -1>(1);
   const {
@@ -386,7 +459,7 @@ function SavingDialog({
         <DialogHeader>
           <DialogTitle>Nabung: {goal.name}</DialogTitle>
           <DialogDescription>
-            Terkumpul {formatIDR(Number(goal.savedAmount))} dari{" "}
+            Terkumpul {formatIDR(goal.saved)} dari{" "}
             {formatIDR(Number(goal.targetAmount))}. Catatan ini tidak mengubah
             saldo dompet.
           </DialogDescription>

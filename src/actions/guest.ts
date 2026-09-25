@@ -12,7 +12,7 @@ const PATHS = [
   "/wallets",
   "/transactions",
   "/categories",
-  "/budgets",
+  "/goals",
   "/reports",
   "/allocation",
 ];

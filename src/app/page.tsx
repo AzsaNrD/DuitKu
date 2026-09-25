@@ -6,9 +6,9 @@ import {
   ChartPie,
   Download,
   Lock,
+  Percent,
   Scale,
   Tags,
-  Target,
   Wallet,
 } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -37,10 +37,10 @@ const FEATURES = [
     color: "#ec4899",
   },
   {
-    icon: Target,
-    title: "Budget dengan Indikator Warna",
+    icon: Percent,
+    title: "Alokasi Gaji & Batas Kategori",
     description:
-      "Set batas pengeluaran per kategori. Warnanya berubah hijau, kuning, lalu merah begitu mendekati batas.",
+      "Bagi pemasukan pakai 50/30/20 atau racikanmu sendiri, lalu lihat rencana vs realisasinya. Bisa pasang batas per kategori yang berubah hijau, kuning, lalu merah.",
     color: "#22c55e",
   },
   {

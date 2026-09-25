@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | DuitKu",
   },
   description:
-    "Aplikasi pencatatan keuangan pribadi: catat uang masuk & keluar, kelola dompet, budget, dan laporan bulanan.",
+    "Aplikasi pencatatan keuangan pribadi: catat uang masuk & keluar, kelola dompet, alokasi gaji, impian, dan laporan bulanan.",
   appleWebApp: {
     capable: true,
     title: "DuitKu",

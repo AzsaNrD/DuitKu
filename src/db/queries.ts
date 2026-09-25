@@ -17,13 +17,14 @@ import {
   allocationIncomeCategories,
   allocationIncomeOverrides,
   allocationWalletLinks,
-  budgets,
   categories,
+  categoryLimits,
   goals,
   recurringRules,
   transactions,
   wallets,
   type AllocationBucket,
+  type Goal,
   type TransactionType,
   type Wallet,
 } from "@/db/schema";
@@ -137,70 +138,6 @@ export async function getIncomeByCategory(userId: string, month: string) {
     .orderBy(desc(sql`sum(${transactions.amount})`));
 
   return rows.map((r) => ({ ...r, total: Number(r.total) }));
-}
-
-export async function getRecentTransactions(userId: string, limit = 8) {
-  return db.query.transactions.findMany({
-    where: eq(transactions.userId, userId),
-    orderBy: [desc(transactions.date), desc(transactions.createdAt)],
-    limit,
-  });
-}
-
-export type BudgetWithProgress = {
-  id: string;
-  categoryId: string;
-  categoryName: string;
-  categoryColor: string;
-  categoryIcon: string;
-  month: string;
-  amount: number;
-  spent: number;
-};
-
-export async function getBudgetsWithSpent(
-  userId: string,
-  month: string
-): Promise<BudgetWithProgress[]> {
-  const [budgetRows, spentRows] = await Promise.all([
-    db
-      .select({
-        id: budgets.id,
-        categoryId: budgets.categoryId,
-        categoryName: categories.name,
-        categoryColor: categories.color,
-        categoryIcon: categories.icon,
-        month: budgets.month,
-        amount: budgets.amount,
-      })
-      .from(budgets)
-      .innerJoin(categories, eq(budgets.categoryId, categories.id))
-      .where(and(eq(budgets.userId, userId), eq(budgets.month, month))),
-    db
-      .select({
-        categoryId: transactions.categoryId,
-        total: sql<string>`sum(${transactions.amount})`,
-      })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.userId, userId),
-          eq(transactions.type, "expense"),
-          eq(monthOf, month)
-        )
-      )
-      .groupBy(transactions.categoryId),
-  ]);
-
-  const spentMap = new Map(
-    spentRows.map((r) => [r.categoryId, Number(r.total)])
-  );
-
-  return budgetRows.map((b) => ({
-    ...b,
-    amount: Number(b.amount),
-    spent: spentMap.get(b.categoryId) ?? 0,
-  }));
 }
 
 export type TransactionFilters = {
@@ -361,10 +298,32 @@ export async function getMonthlyTrend(
   return result;
 }
 
-export async function getGoals(userId: string) {
-  return db.query.goals.findMany({
-    where: eq(goals.userId, userId),
-    orderBy: (g, { asc }) => [asc(g.createdAt)],
+export type GoalWithProgress = Goal & {
+  saved: number;
+  walletName: string | null;
+};
+
+// Progres impian: saldo dompet yang terhubung (tidak pernah negatif), atau
+// savedAmount yang dicatat manual kalau tidak terhubung ke dompet.
+export async function getGoalsWithProgress(
+  userId: string
+): Promise<GoalWithProgress[]> {
+  const [goalRows, walletRows] = await Promise.all([
+    db.query.goals.findMany({
+      where: eq(goals.userId, userId),
+      orderBy: (g, { asc }) => [asc(g.createdAt)],
+    }),
+    getWalletsWithBalances(userId),
+  ]);
+  const walletById = new Map(walletRows.map((w) => [w.id, w]));
+
+  return goalRows.map((g) => {
+    const wallet = g.walletId ? walletById.get(g.walletId) : undefined;
+    return {
+      ...g,
+      saved: wallet ? Math.max(0, wallet.balance) : Number(g.savedAmount),
+      walletName: wallet?.name ?? null,
+    };
   });
 }
 
@@ -419,11 +378,23 @@ export async function getAllocationPlan(userId: string): Promise<AllocationPlan>
   };
 }
 
+export type AllocationCategoryProgress = {
+  categoryId: string;
+  name: string;
+  color: string;
+  icon: string;
+  spent: number;
+  // batas per bulan (pengganti Budget lama), null = tanpa batas
+  limit: number | null;
+};
+
 export type AllocationBucketProgress = AllocationBucket & {
   planned: number;
   actual: number;
   // jumlah kategori (pos pengeluaran) atau dompet (pos tabungan) yang terpetakan
   linkedCount: number;
+  // rincian kategori, hanya untuk pos pengeluaran
+  categories: AllocationCategoryProgress[];
 };
 
 export type AllocationOverview = {
@@ -465,8 +436,14 @@ export async function getAllocationOverview(
     };
   }
 
-  const [incomeRows, override, expenseByCategory, transfers] =
-    await Promise.all([
+  const [
+    incomeRows,
+    override,
+    expenseByCategory,
+    transfers,
+    userCategories,
+    limitRows,
+  ] = await Promise.all([
       p.incomeCategoryIds.length > 0
         ? db
             .select({
@@ -503,6 +480,14 @@ export async function getAllocationOverview(
             eq(monthOf, month)
           )
         ),
+      getUserCategories(userId),
+      db
+        .select({
+          categoryId: categoryLimits.categoryId,
+          amount: categoryLimits.amount,
+        })
+        .from(categoryLimits)
+        .where(eq(categoryLimits.userId, userId)),
     ]);
 
   const auto = Number(incomeRows[0]?.total ?? 0);
@@ -544,15 +529,47 @@ export async function getAllocationOverview(
     if (from) actual.set(from, (actual.get(from) ?? 0) - amount);
   }
 
-  const buckets: AllocationBucketProgress[] = p.buckets.map((b) => ({
-    ...b,
-    planned: Math.round((used * b.percent) / 100),
-    actual: actual.get(b.id) ?? 0,
-    linkedCount:
-      b.kind === "expense"
-        ? p.categoryLinks.filter((l) => l.bucketId === b.id).length
-        : p.walletLinks.filter((l) => l.bucketId === b.id).length,
-  }));
+  const spentByCategory = new Map(
+    expenseByCategory
+      .filter((r) => r.categoryId)
+      .map((r) => [r.categoryId as string, r.total])
+  );
+  const limitByCategory = new Map(
+    limitRows.map((l) => [l.categoryId, Number(l.amount)])
+  );
+  const categoryById = new Map(userCategories.map((c) => [c.id, c]));
+
+  const buckets: AllocationBucketProgress[] = p.buckets.map((b) => {
+    const categoryIds = p.categoryLinks
+      .filter((l) => l.bucketId === b.id)
+      .map((l) => l.categoryId);
+    const bucketCategories: AllocationCategoryProgress[] =
+      b.kind !== "expense"
+        ? []
+        : categoryIds
+            .map((id) => categoryById.get(id))
+            .filter((c) => c !== undefined)
+            .map((c) => ({
+              categoryId: c.id,
+              name: c.name,
+              color: c.color,
+              icon: c.icon,
+              spent: spentByCategory.get(c.id) ?? 0,
+              limit: limitByCategory.get(c.id) ?? null,
+            }))
+            .sort((x, y) => y.spent - x.spent || x.name.localeCompare(y.name));
+
+    return {
+      ...b,
+      planned: Math.round((used * b.percent) / 100),
+      actual: actual.get(b.id) ?? 0,
+      linkedCount:
+        b.kind === "expense"
+          ? categoryIds.length
+          : p.walletLinks.filter((l) => l.bucketId === b.id).length,
+      categories: bucketCategories,
+    };
+  });
 
   return {
     hasPlan: true,

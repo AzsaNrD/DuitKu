@@ -60,7 +60,7 @@ export function LoginForm() {
         </div>
         <CardTitle className="text-xl">Masuk ke DuitKu</CardTitle>
         <CardDescription>
-          Catat keuanganmu, kelola dompet & budget
+          Catat keuanganmu, kelola dompet & alokasi gaji
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

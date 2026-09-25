@@ -10,22 +10,20 @@ import {
   PiggyBank,
   Repeat,
   Tags,
-  Target,
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // mobileHidden: bottom nav di HP hanya muat 6 item;
 // halaman berulang tetap bisa diakses dari halaman Transaksi,
-// halaman alokasi dari kartu Alokasi di dashboard
+// halaman impian dari kartu Impian di dashboard
 export const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transaksi", icon: ArrowLeftRight },
   { href: "/recurring", label: "Berulang", icon: Repeat, mobileHidden: true },
   { href: "/wallets", label: "Dompet", icon: Wallet },
   { href: "/categories", label: "Kategori", icon: Tags },
-  { href: "/budgets", label: "Budget", icon: Target },
-  { href: "/allocation", label: "Alokasi", icon: Percent, mobileHidden: true },
+  { href: "/allocation", label: "Alokasi", icon: Percent },
   { href: "/goals", label: "Impian", icon: PiggyBank, mobileHidden: true },
   { href: "/reports", label: "Laporan", icon: ChartPie },
 ] as const;

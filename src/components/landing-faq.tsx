@@ -23,7 +23,7 @@ const FAQ_ITEMS = [
   {
     question: "Kalau pakai mode tanpa akun terus ganti HP, datanya ikut pindah?",
     answer:
-      "Tidak otomatis, karena memang tidak disimpan di server kami. Sebelum ganti perangkat, export dulu datanya (JSON) lewat halaman Transaksi, atau daftar akun supaya datanya tersimpan permanen dan bisa diakses dari perangkat lain.",
+      "Tidak otomatis, karena memang tidak disimpan di server kami. Sebelum ganti perangkat, klik Unduh Cadangan di Dashboard mode tanpa akun, lalu Pulihkan dari File di perangkat baru. Atau daftar akun supaya datanya tersimpan permanen dan bisa diakses dari perangkat lain.",
   },
   {
     question: "Saldo di aplikasi beda dengan uang asli di dompet, gimana benerinnya?",

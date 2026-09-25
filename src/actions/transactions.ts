@@ -14,7 +14,7 @@ import {
   type TransactionInput,
 } from "@/lib/zod-schemas";
 
-const PATHS = ["/transactions", "/dashboard", "/wallets", "/budgets", "/reports", "/allocation"];
+const PATHS = ["/transactions", "/dashboard", "/wallets", "/reports", "/allocation", "/goals"];
 
 function revalidateAll() {
   PATHS.forEach((p) => revalidatePath(p));

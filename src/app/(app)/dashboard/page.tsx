@@ -7,7 +7,6 @@ import {
   Percent,
   PiggyBank,
   Sparkles,
-  Target,
   Wallet as WalletIcon,
 } from "lucide-react";
 import { auth } from "@/auth";
@@ -15,9 +14,8 @@ import { requireUserId } from "@/lib/require-user";
 import { processDueRecurring } from "@/lib/recurring";
 import {
   getAllocationOverview,
-  getBudgetsWithSpent,
   getExpenseByCategory,
-  getGoals,
+  getGoalsWithProgress,
   getMonthSummary,
   getTransactionsPage,
   getUserCategories,
@@ -33,7 +31,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
-import { BudgetProgressItem } from "@/components/budget-progress";
 import { WalletSummaryList } from "@/components/wallet-summary-list";
 import {
   AllocationBucketRow,
@@ -64,7 +61,6 @@ export default async function DashboardPage() {
     summary,
     expenseByCategory,
     recent,
-    budgets,
     categories,
     goals,
     allocation,
@@ -73,13 +69,16 @@ export default async function DashboardPage() {
     getMonthSummary(userId, month),
     getExpenseByCategory(userId, month),
     getTransactionsPage(userId, { pageSize: 8 }),
-    getBudgetsWithSpent(userId, month),
     getUserCategories(userId),
-    getGoals(userId),
+    getGoalsWithProgress(userId),
     getAllocationOverview(userId, month),
   ]);
 
   const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0);
+  // pengganti peringatan kartu Budget lama: kategori yang melewati batasnya
+  const overLimit = allocation.buckets
+    .flatMap((b) => b.categories)
+    .filter((c) => c.limit !== null && c.spent > c.limit);
   const net = summary.income - summary.expense;
   const firstName = session?.user?.name?.split(" ")[0];
 
@@ -207,6 +206,14 @@ export default async function DashboardPage() {
                     <AllocationBucketRow key={bucket.id} bucket={bucket} compact />
                   ))}
                 </div>
+                {overLimit.length > 0 && (
+                  <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+                    Melewati batas bulan ini:{" "}
+                    {overLimit
+                      .map((c) => `${c.name} (lebih ${formatIDR(c.spent - (c.limit ?? 0))})`)
+                      .join(", ")}
+                  </p>
+                )}
               </div>
             ) : (
               <EmptyState
@@ -269,39 +276,9 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Budget bulan ini */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Budget Bulan Ini</CardTitle>
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/budgets" />}>
-              Kelola
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {budgets.length === 0 ? (
-              <EmptyState
-                compact
-                icon={Target}
-                title="Belum ada budget"
-                description="Batasi pengeluaran per kategori supaya lebih terkontrol."
-                action={
-                  <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/budgets" />}>
-                    Set Budget
-                  </Button>
-                }
-              />
-            ) : (
-              <div className="divide-y">
-                {budgets.map((budget) => (
-                  <BudgetProgressItem key={budget.id} budget={budget} />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Impian */}
-        <Card>
+        {/* Impian: lebar penuh sejak kartu Budget dihapus, supaya grid
+            dua kolom di atasnya tetap berpasangan */}
+        <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Impian</CardTitle>
             <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/goals" />}>
@@ -322,10 +299,10 @@ export default async function DashboardPage() {
                 }
               />
             ) : (
-              <div className="space-y-5">
+              <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
                 {goals.slice(0, 4).map((goal) => {
                   const target = Number(goal.targetAmount);
-                  const saved = Number(goal.savedAmount);
+                  const saved = goal.saved;
                   const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
                   const done = saved >= target;
                   return (

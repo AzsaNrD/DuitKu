@@ -14,6 +14,21 @@ export default function DashboardLoading() {
       <SummaryCardsSkeleton />
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+        {/* alokasi */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <Skeleton className="h-5 w-36" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-2.5 w-full rounded-full" />
+            <div className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+              <ProgressListSkeleton rows={1} />
+              <ProgressListSkeleton rows={1} />
+              <ProgressListSkeleton rows={1} />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* dompet */}
         <Card>
           <CardHeader>
@@ -42,23 +57,14 @@ export default function DashboardLoading() {
           </CardContent>
         </Card>
 
-        {/* budget */}
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-5 w-36" />
-          </CardHeader>
-          <CardContent>
-            <ProgressListSkeleton rows={3} />
-          </CardContent>
-        </Card>
-
         {/* impian */}
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
             <Skeleton className="h-5 w-20" />
           </CardHeader>
-          <CardContent>
-            <ProgressListSkeleton rows={3} />
+          <CardContent className="grid gap-x-8 sm:grid-cols-2">
+            <ProgressListSkeleton rows={2} />
+            <ProgressListSkeleton rows={2} />
           </CardContent>
         </Card>
 

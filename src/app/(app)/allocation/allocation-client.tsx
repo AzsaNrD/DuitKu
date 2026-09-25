@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Settings2 } from "lucide-react";
+import { ChevronDown, Settings2 } from "lucide-react";
 import { actionToast } from "@/lib/action-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,23 +18,35 @@ import {
 import { Label } from "@/components/ui/label";
 import { AmountInput } from "@/components/amount-input";
 import { MonthNav } from "@/components/month-nav";
+import { CategoryIcon } from "@/components/category-icon";
 import {
   AllocationBucketRow,
   AllocationSplitBar,
+  spendingBarColor,
 } from "@/components/allocation-progress";
 import {
   applyAllocationPreset,
   clearAllocationIncomeOverride,
+  clearCategoryLimit,
   deleteAllocationPlan,
   setAllocationIncomeOverride,
+  setCategoryLimit,
 } from "@/actions/allocation";
 import { ALLOCATION_PRESETS } from "@/lib/allocation-presets";
 import {
   allocationOverrideSchema,
+  categoryLimitSchema,
   type AllocationOverrideInput,
+  type CategoryLimitInput,
 } from "@/lib/zod-schemas";
 import { formatIDR, formatMonth } from "@/lib/format";
-import type { AllocationOverview, AllocationPlan } from "@/db/queries";
+import { cn } from "@/lib/utils";
+import type {
+  AllocationBucketProgress,
+  AllocationCategoryProgress,
+  AllocationOverview,
+  AllocationPlan,
+} from "@/db/queries";
 import type { Category, Wallet } from "@/db/schema";
 import {
   AllocationSettingsDialog,
@@ -61,6 +73,9 @@ export function AllocationClient({
   const [pendingPreset, setPendingPreset] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [overrideOpen, setOverrideOpen] = useState(false);
+  const [limitFor, setLimitFor] = useState<AllocationCategoryProgress | null>(
+    null
+  );
 
   const pending = ALLOCATION_PRESETS.find((p) => p.id === pendingPreset);
 
@@ -108,7 +123,12 @@ export function AllocationClient({
             </CardHeader>
             <CardContent className="divide-y pt-0">
               {overview.buckets.map((bucket) => (
-                <AllocationBucketRow key={bucket.id} bucket={bucket} />
+                <div key={bucket.id}>
+                  <AllocationBucketRow bucket={bucket} />
+                  {bucket.kind === "expense" && bucket.categories.length > 0 && (
+                    <BucketCategories bucket={bucket} onEditLimit={setLimitFor} />
+                  )}
+                </div>
               ))}
             </CardContent>
           </Card>
@@ -211,6 +231,13 @@ export function AllocationClient({
         />
       )}
 
+      {limitFor && (
+        <CategoryLimitDialog
+          category={limitFor}
+          onOpenChange={(o) => !o && setLimitFor(null)}
+        />
+      )}
+
       <Dialog
         open={!!pendingPreset}
         onOpenChange={(o) => !o && setPendingPreset(null)}
@@ -240,6 +267,194 @@ export function AllocationClient({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Rincian kategori di bawah pos pengeluaran, sekaligus tempat mengatur batas
+// bulanan per kategori (pengganti halaman Budget). Terbuka otomatis kalau ada
+// kategori yang punya batas supaya batasnya langsung terlihat.
+function BucketCategories({
+  bucket,
+  onEditLimit,
+}: {
+  bucket: AllocationBucketProgress;
+  onEditLimit: (category: AllocationCategoryProgress) => void;
+}) {
+  const [open, setOpen] = useState(() =>
+    bucket.categories.some((c) => c.limit !== null)
+  );
+  const overCount = bucket.categories.filter(
+    (c) => c.limit !== null && c.spent > c.limit
+  ).length;
+
+  return (
+    <div className="pb-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 rounded text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <ChevronDown
+          className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
+        />
+        <span>
+          {open ? "Sembunyikan" : "Lihat"} {bucket.categories.length} kategori
+          {overCount > 0 && (
+            <span className="text-red-600 dark:text-red-400">
+              , {overCount} lewat batas
+            </span>
+          )}
+        </span>
+      </button>
+      {open && (
+        <ul className="mt-2 space-y-1 rounded-xl bg-muted/50 p-2">
+          {bucket.categories.map((c) => (
+            <CategoryLimitRow
+              key={c.categoryId}
+              category={c}
+              onEdit={() => onEditLimit(c)}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function CategoryLimitRow({
+  category,
+  onEdit,
+}: {
+  category: AllocationCategoryProgress;
+  onEdit: () => void;
+}) {
+  const { limit, spent } = category;
+  const pct = limit ? (spent / limit) * 100 : 0;
+
+  return (
+    <li className="space-y-1.5 rounded-lg px-2 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white"
+            style={{ backgroundColor: category.color }}
+          >
+            <CategoryIcon icon={category.icon} className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{category.name}</p>
+            <p className="money text-xs text-muted-foreground">
+              {formatIDR(spent)}
+              {limit !== null && <> dari batas {formatIDR(limit)}</>}
+              {limit !== null && spent > limit && (
+                <span className="ml-1 font-medium text-red-600 dark:text-red-400">
+                  (lebih {formatIDR(spent - limit)})
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 shrink-0 px-2 text-xs"
+          onClick={onEdit}
+          aria-label={`${limit === null ? "Pasang" : "Ubah"} batas ${category.name}`}
+        >
+          {limit === null ? "Pasang batas" : "Ubah"}
+        </Button>
+      </div>
+      {limit !== null && (
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn("h-full rounded-full transition-all", spendingBarColor(pct))}
+            style={{ width: `${Math.min(100, pct)}%` }}
+          />
+        </div>
+      )}
+    </li>
+  );
+}
+
+function CategoryLimitDialog({
+  category,
+  onOpenChange,
+}: {
+  category: AllocationCategoryProgress;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<CategoryLimitInput>({
+    resolver: zodResolver(categoryLimitSchema),
+    defaultValues: {
+      categoryId: category.categoryId,
+      amount: category.limit ?? undefined,
+    },
+  });
+
+  function onSubmit(data: CategoryLimitInput) {
+    onOpenChange(false);
+    actionToast(setCategoryLimit(data), {
+      loading: "Menyimpan...",
+      success: `Batas ${category.name} disimpan`,
+    });
+  }
+
+  function onClear() {
+    onOpenChange(false);
+    actionToast(clearCategoryLimit(category.categoryId), {
+      loading: "Menghapus batas...",
+      success: `Batas ${category.name} dihapus`,
+    });
+  }
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Batas {category.name}</DialogTitle>
+          <DialogDescription>
+            Batas pengeluaran kategori ini untuk setiap bulan. Kalau terlewati,
+            muncul peringatan di sini dan di dashboard.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <input type="hidden" {...register("categoryId")} />
+          <div className="space-y-2">
+            <Label htmlFor="limit-amount">Batas per bulan (Rp)</Label>
+            <AmountInput id="limit-amount" min={1} {...register("amount")} />
+            {errors.amount && (
+              <p className="text-sm text-destructive">{errors.amount.message}</p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:justify-between">
+            {category.limit !== null ? (
+              <Button type="button" variant="ghost" onClick={onClear}>
+                Hapus Batas
+              </Button>
+            ) : (
+              <span className="hidden sm:block" />
+            )}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Batal
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                Simpan
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

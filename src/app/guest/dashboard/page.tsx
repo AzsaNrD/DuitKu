@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
 import { WalletSummaryList } from "@/components/wallet-summary-list";
+import { GuestBackupCard } from "@/components/guest-backup-card";
 import { TransactionItem } from "@/app/(app)/transactions/transactions-client";
 
 export default function GuestDashboardPage() {
@@ -195,6 +196,8 @@ export default function GuestDashboardPage() {
           </CardContent>
         </Card>
 
+        <GuestBackupCard />
+
         <Card className="lg:col-span-2 border-dashed">
           <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
@@ -202,7 +205,7 @@ export default function GuestDashboardPage() {
             </span>
             <div className="space-y-1">
               <p className="font-medium">
-                Budget, Alokasi, Impian & Transaksi Berulang perlu akun
+                Alokasi, Impian & Transaksi Berulang perlu akun
               </p>
               <p className="text-sm text-muted-foreground">
                 Fitur ini butuh penyimpanan yang lebih permanen. Daftar akun

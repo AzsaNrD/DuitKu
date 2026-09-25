@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "DuitKu: Catatan Keuangan Pribadi",
     short_name: "DuitKu",
     description:
-      "Catat uang masuk & keluar, kelola dompet, budget, dan impian.",
+      "Catat uang masuk & keluar, kelola dompet, alokasi gaji, dan impian.",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#0a0a0a",

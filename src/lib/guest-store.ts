@@ -27,6 +27,7 @@ import { todayString } from "@/lib/format";
 import {
   adjustBalanceSchema,
   categorySchema,
+  guestImportSchema,
   transactionSchema,
   walletSchema,
   type AdjustBalanceInput,
@@ -155,10 +156,8 @@ export function clearGuestData() {
 
 // ---------- Dompet ----------
 
-// Versi murni (terima data sebagai argumen) dipakai di halaman lewat
-// useMemo(() => computeWalletsWithBalances(data), [data]); versi
-// getGuestWalletsWithBalances() dipakai internal (mis. adjustGuestWalletBalance)
-// yang tidak perlu reaktif terhadap re-render.
+// Fungsi murni (terima data sebagai argumen), dipakai di halaman lewat
+// useMemo(() => computeWalletsWithBalances(data), [data]).
 export function computeWalletsWithBalances(data: GuestData): WalletWithBalance[] {
   return data.wallets.map((w) => {
     let delta = 0;
@@ -176,10 +175,6 @@ export function computeWalletsWithBalances(data: GuestData): WalletWithBalance[]
     }
     return { ...w, balance: Number(w.initialBalance) + delta };
   });
-}
-
-export function getGuestWalletsWithBalances(): WalletWithBalance[] {
-  return computeWalletsWithBalances(loadGuestData());
 }
 
 export async function createGuestWallet(input: WalletInput): Promise<ActionResult> {
@@ -277,10 +272,6 @@ export async function adjustGuestWalletBalance(
 }
 
 // ---------- Kategori ----------
-
-export function getGuestCategories(): Category[] {
-  return loadGuestData().categories;
-}
 
 export async function createGuestCategory(input: CategoryInput): Promise<ActionResult> {
   const parsed = categorySchema.safeParse(input);
@@ -575,28 +566,67 @@ export function downloadGuestTransactionsCsv(filters: TransactionFilters = {}) {
   );
 }
 
-// Pulihkan dari file JSON hasil downloadGuestDataJson. Validasi longgar
-// (cuma cek bentuknya array) karena ini format internal kita sendiri,
-// bukan input dari pihak luar yang perlu divalidasi ketat.
-export function importGuestDataJson(json: string): ActionResult {
-  let parsed: unknown;
+// Baca file cadangan (hasil downloadGuestDataJson) tanpa langsung menimpa
+// data, supaya UI bisa menampilkan isinya dulu untuk dikonfirmasi.
+// Divalidasi ketat: file bisa berasal dari mana saja, dan data yang rusak di
+// localStorage akan merusak semua halaman mode tanpa akun.
+export function readGuestBackup(
+  json: string
+): { data: GuestData } | { error: string } {
+  let raw: unknown;
   try {
-    parsed = JSON.parse(json, reviveDates);
+    raw = JSON.parse(json);
   } catch {
-    return { error: "File tidak valid atau rusak" };
+    return { error: "File tidak bisa dibaca. Pastikan itu file cadangan DuitKu (.json)." };
   }
-  const data = parsed as Partial<GuestData>;
-  if (
-    !Array.isArray(data.wallets) ||
-    !Array.isArray(data.categories) ||
-    !Array.isArray(data.transactions)
-  ) {
-    return { error: "Format file tidak sesuai backup DuitKu" };
+  const parsed = guestImportSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: "Isi file tidak sesuai format cadangan DuitKu." };
   }
-  commit({
-    wallets: data.wallets,
-    categories: data.categories,
-    transactions: data.transactions,
-  });
-  return { success: true };
+
+  const createdAtOf = (item: unknown) => {
+    const value = (item as { createdAt?: unknown })?.createdAt;
+    const date = typeof value === "string" ? new Date(value) : null;
+    return date && !Number.isNaN(date.getTime()) ? date : new Date();
+  };
+  const rawData = raw as Record<"wallets" | "categories" | "transactions", unknown[]>;
+
+  const wallets: Wallet[] = parsed.data.wallets.map((w, i) => ({
+    ...w,
+    userId: GUEST_USER_ID,
+    createdAt: createdAtOf(rawData.wallets[i]),
+  }));
+  const categories: Category[] = parsed.data.categories.map((c, i) => ({
+    ...c,
+    userId: GUEST_USER_ID,
+    createdAt: createdAtOf(rawData.categories[i]),
+  }));
+
+  // buang transaksi yang dompetnya tidak ada di file, dan kosongkan kategori
+  // yang tidak ada, supaya tidak ada referensi menggantung
+  const walletIds = new Set(wallets.map((w) => w.id));
+  const categoryIds = new Set(categories.map((c) => c.id));
+  const transactions: Transaction[] = parsed.data.transactions
+    .map((t, i) => ({
+      ...t,
+      userId: GUEST_USER_ID,
+      createdAt: createdAtOf(rawData.transactions[i]),
+    }))
+    .filter(
+      (t) =>
+        walletIds.has(t.walletId) &&
+        (!t.transferToWalletId || walletIds.has(t.transferToWalletId))
+    )
+    .map((t) =>
+      t.categoryId && !categoryIds.has(t.categoryId)
+        ? { ...t, categoryId: null }
+        : t
+    );
+
+  return { data: { wallets, categories, transactions } };
+}
+
+// Menimpa seluruh data mode tanpa akun di browser ini dengan isi cadangan.
+export function restoreGuestBackup(data: GuestData) {
+  commit(data);
 }

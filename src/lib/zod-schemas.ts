@@ -107,10 +107,10 @@ export const adjustBalanceSchema = z.object({
     .max(255, "Alasan maksimal 255 karakter"),
 });
 
-export const budgetSchema = z.object({
+// batas pengeluaran per kategori, berlaku tiap bulan (bagian dari Alokasi)
+export const categoryLimitSchema = z.object({
   categoryId: z.string().min(1, "Pilih kategori"),
-  month: z.string().regex(/^\d{4}-\d{2}$/, "Bulan tidak valid"),
-  amount: amountPositive("Jumlah harus lebih dari 0"),
+  amount: amountPositive("Batas harus lebih dari 0"),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -125,6 +125,8 @@ export const goalSchema = z.object({
   targetDate: z
     .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")])
     .optional(),
+  // "" = progres dicatat manual; id dompet = progres ikut saldo dompet itu
+  walletId: z.string().optional(),
 });
 
 export const goalSavingSchema = z.object({
@@ -208,7 +210,7 @@ export const guestImportSchema = z.object({
 
 export type GuestImportInput = z.infer<typeof guestImportSchema>;
 
-export type BudgetInput = z.infer<typeof budgetSchema>;
+export type CategoryLimitInput = z.infer<typeof categoryLimitSchema>;
 export type RecurringInput = z.infer<typeof recurringSchema>;
 export type GoalInput = z.infer<typeof goalSchema>;
 export type GoalSavingInput = z.infer<typeof goalSavingSchema>;

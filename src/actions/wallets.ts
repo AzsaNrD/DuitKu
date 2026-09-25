@@ -7,7 +7,7 @@ import { wallets } from "@/db/schema";
 import { requireUserId } from "@/lib/require-user";
 import { walletSchema, type WalletInput } from "@/lib/zod-schemas";
 
-const PATHS = ["/wallets", "/dashboard", "/transactions", "/reports", "/allocation"];
+const PATHS = ["/wallets", "/dashboard", "/transactions", "/reports", "/allocation", "/goals"];
 
 function revalidateAll() {
   PATHS.forEach((p) => revalidatePath(p));
