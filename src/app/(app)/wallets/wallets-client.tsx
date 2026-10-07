@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { TiltCard } from "@/components/tilt-card";
 import {
   Dialog,
   DialogContent,
@@ -152,55 +153,54 @@ export function WalletsClient({
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
                   {group.map((wallet) => (
-                    <Card
-                      key={wallet.id}
-                      className="transition-all hover:-translate-y-0.5 hover:shadow-md"
-                    >
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm"
-                            style={{ backgroundColor: wallet.color }}
-                          >
-                            <GroupIcon className="h-5 w-5" />
-                          </span>
-                          <CardTitle className="text-base">
-                            {wallet.name}
-                          </CardTitle>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Sesuaikan saldo"
-                            onClick={() => setAdjusting(wallet)}
-                          >
-                            <Scale className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Edit dompet"
-                            onClick={() => openEdit(wallet)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Hapus dompet"
-                            onClick={() => setDeleting(wallet)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="money text-2xl font-bold">
-                          {formatIDR(wallet.balance)}
-                        </p>
-                      </CardContent>
-                    </Card>
+                    <TiltCard key={wallet.id} max={6}>
+                      <Card className="h-full transition-shadow hover:shadow-md">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                          <div className="flex items-center gap-3">
+                            <span
+                              className="flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm"
+                              style={{ backgroundColor: wallet.color }}
+                            >
+                              <GroupIcon className="h-5 w-5" />
+                            </span>
+                            <CardTitle className="text-base">
+                              {wallet.name}
+                            </CardTitle>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Sesuaikan saldo"
+                              onClick={() => setAdjusting(wallet)}
+                            >
+                              <Scale className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit dompet"
+                              onClick={() => openEdit(wallet)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Hapus dompet"
+                              onClick={() => setDeleting(wallet)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="money text-2xl font-bold">
+                            {formatIDR(wallet.balance)}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </TiltCard>
                   ))}
                 </div>
               </div>

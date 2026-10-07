@@ -19,6 +19,7 @@ import {
 } from "@/lib/guest-store";
 import { currentMonth, formatIDR, formatMonth } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TiltCard } from "@/components/tilt-card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
@@ -59,23 +60,28 @@ export default function GuestDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 text-white sm:col-span-2 lg:col-span-1">
-          <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10" />
-          <div className="pointer-events-none absolute -bottom-10 -left-4 h-24 w-24 rounded-full bg-white/10" />
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-white/85">
-              <WalletIcon className="h-4 w-4" /> Total Saldo
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="money text-2xl font-bold tracking-tight md:text-[1.7rem]">
-              {formatIDR(totalBalance)}
-            </p>
-            <p className="mt-1 text-xs text-white/75">
-              dari {wallets.length} dompet
-            </p>
-          </CardContent>
-        </Card>
+        <TiltCard
+          glare
+          className="sm:col-span-2 lg:col-span-1 motion-safe:animate-swing-in"
+        >
+          <Card className="relative h-full overflow-hidden border-0 bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 text-white">
+            <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10" />
+            <div className="pointer-events-none absolute -bottom-10 -left-4 h-24 w-24 rounded-full bg-white/10" />
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-white/85">
+                <WalletIcon className="h-4 w-4" /> Total Saldo
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="money text-2xl font-bold tracking-tight md:text-[1.7rem]">
+                {formatIDR(totalBalance)}
+              </p>
+              <p className="mt-1 text-xs text-white/75">
+                dari {wallets.length} dompet
+              </p>
+            </CardContent>
+          </Card>
+        </TiltCard>
 
         <Card>
           <CardHeader className="pb-2">

@@ -16,6 +16,7 @@ import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { LandingNav } from "@/components/landing-nav";
 import { LandingFaq } from "@/components/landing-faq";
+import { TiltCard } from "@/components/tilt-card";
 
 export const metadata: Metadata = {
   title: "DuitKu: Catat Keuangan, Gratis & Bisa Dicoba Tanpa Akun",
@@ -122,10 +123,16 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            {/* Mockup dashboard — ilustrasi tampilan, bukan data asli */}
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150 relative">
-              <div className="relative rounded-2xl border bg-card p-4 shadow-xl sm:p-5">
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 p-4 text-white">
+            {/* Mockup dashboard: ilustrasi tampilan, bukan data asli.
+                Lapisannya diberi kedalaman (translateZ) supaya saat
+                dimiringkan kursor, kartu saldo dan chip gaji terasa
+                melayang di depan panel. */}
+            <TiltCard
+              max={10}
+              className="relative motion-safe:animate-swing-in [animation-delay:150ms]"
+            >
+              <div className="relative rounded-2xl border bg-card p-4 shadow-xl [transform-style:preserve-3d] sm:p-5">
+                <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 p-4 text-white shadow-lg [transform:translateZ(40px)]">
                   <div className="pointer-events-none absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10" />
                   <div className="pointer-events-none absolute -bottom-8 -left-3 h-20 w-20 rounded-full bg-white/10" />
                   <p className="flex items-center gap-1.5 text-xs text-white/80">
@@ -136,7 +143,7 @@ export default async function LandingPage() {
                   </p>
                   <p className="mt-1 text-xs text-white/70">dari 3 dompet</p>
                 </div>
-                <div className="mt-4 space-y-2.5">
+                <div className="mt-4 space-y-2.5 [transform:translateZ(16px)]">
                   {[
                     { name: "Cash", color: "#22c55e", amount: "Rp 350.000" },
                     { name: "BCA", color: "#3b82f6", amount: "Rp 2.900.000" },
@@ -155,7 +162,7 @@ export default async function LandingPage() {
                   ))}
                 </div>
               </div>
-              <div className="absolute -bottom-5 -left-4 hidden rotate-[-4deg] rounded-xl border bg-card px-3.5 py-2.5 shadow-lg sm:block">
+              <div className="absolute -bottom-5 -left-4 hidden rotate-[-4deg] rounded-xl border bg-card px-3.5 py-2.5 shadow-lg [transform:translateZ(70px)] sm:block">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-500/10">
                     <ArrowDownLeft className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
@@ -166,7 +173,7 @@ export default async function LandingPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </TiltCard>
           </div>
         </section>
 
