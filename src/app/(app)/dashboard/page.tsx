@@ -17,11 +17,18 @@ import {
   getExpenseByCategory,
   getGoalsWithProgress,
   getMonthSummary,
+  getSnackOverview,
   getTransactionsPage,
   getUserCategories,
   getWalletsWithBalances,
 } from "@/db/queries";
-import { currentHour, currentMonth, formatIDR, formatMonth } from "@/lib/format";
+import {
+  currentHour,
+  currentMonth,
+  formatIDR,
+  formatMonth,
+  todayString,
+} from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -32,6 +39,7 @@ import { TiltCard } from "@/components/tilt-card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
+import { SnackCard } from "@/components/snack-card";
 import { WalletSummaryList } from "@/components/wallet-summary-list";
 import {
   AllocationBucketRow,
@@ -56,6 +64,7 @@ export default async function DashboardPage() {
   // catat transaksi berulang yang sudah jatuh tempo sebelum menampilkan data
   await processDueRecurring(userId);
   const month = currentMonth();
+  const today = todayString();
 
   const [
     wallets,
@@ -65,6 +74,7 @@ export default async function DashboardPage() {
     categories,
     goals,
     allocation,
+    snack,
   ] = await Promise.all([
     getWalletsWithBalances(userId),
     getMonthSummary(userId, month),
@@ -73,7 +83,11 @@ export default async function DashboardPage() {
     getUserCategories(userId),
     getGoalsWithProgress(userId),
     getAllocationOverview(userId, month),
+    getSnackOverview(userId, today),
   ]);
+  const snackCategoryOptions = categories
+    .filter((c) => c.type === "expense")
+    .map((c) => ({ id: c.id, name: c.name, color: c.color, icon: c.icon }));
 
   const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0);
   // pengganti peringatan kartu Budget lama: kategori yang melewati batasnya
@@ -177,6 +191,13 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+        {/* Keputusan harian: berapa yang masih aman untuk jajan hari ini */}
+        <SnackCard
+          overview={snack}
+          today={today}
+          categories={snackCategoryOptions}
+        />
+
         {/* Alokasi pendapatan bulan ini */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">

@@ -348,6 +348,30 @@ export const allocationIncomeOverrides = pgTable(
   ]
 );
 
+// Jatah jajan: satu batas bulanan per user, dan kategori mana saja yang
+// dihitung sebagai jajan. Dipisah dari tabel categories (sama seperti
+// pemetaan Alokasi) supaya tipe Category yang dipakai guest-store tetap sama.
+export const snackPlans = pgTable("snack_plans", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  monthlyLimit: numeric("monthly_limit", { precision: 14, scale: 0 }).notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+export const snackCategories = pgTable(
+  "snack_categories",
+  {
+    categoryId: text("category_id")
+      .primaryKey()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("snack_categories_user_id_idx").on(table.userId)]
+);
+
 export type User = typeof users.$inferSelect;
 export type Wallet = typeof wallets.$inferSelect;
 export type Category = typeof categories.$inferSelect;

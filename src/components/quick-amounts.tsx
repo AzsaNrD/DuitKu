@@ -31,7 +31,7 @@ export function QuickAmounts({ targetId }: { targetId: string }) {
           key={preset}
           type="button"
           onClick={() => add(preset)}
-          className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground active:scale-95"
+          className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-95 max-sm:min-h-11 max-sm:px-4 max-sm:text-sm"
         >
           +{compact(preset)}
         </button>

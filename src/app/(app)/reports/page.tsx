@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Lightbulb,
   PiggyBank,
   TrendingDown,
   TrendingUp,
@@ -12,14 +14,27 @@ import {
   getIncomeByCategory,
   getMonthlyTrend,
   getMonthSummary,
+  getSnackPlan,
+  getSnackSpending,
+  getSpendingByWeekday,
 } from "@/db/queries";
-import { currentMonth, formatIDR, formatMonth, shiftMonth } from "@/lib/format";
+import {
+  currentMonth,
+  formatIDR,
+  formatMonth,
+  shiftMonth,
+  todayString,
+} from "@/lib/format";
+import { addDays, countWeekdays, daysInMonth } from "@/lib/snack";
+import { buildInsights } from "@/lib/insights";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
+import { InsightList } from "@/components/insight-list";
 import { MonthNav } from "@/components/month-nav";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
 import { TrendChart } from "@/components/trend-chart";
@@ -58,18 +73,94 @@ export default async function ReportsPage({
     : currentMonth();
   const prevMonth = shiftMonth(month, -1);
 
-  const [summary, prevSummary, expenseByCategory, incomeByCategory, trend] =
-    await Promise.all([
-      getMonthSummary(userId, month),
-      getMonthSummary(userId, prevMonth),
-      getExpenseByCategory(userId, month),
-      getIncomeByCategory(userId, month),
-      getMonthlyTrend(userId, month, 6),
-    ]);
+  const [
+    summary,
+    prevSummary,
+    expenseByCategory,
+    prevExpenseByCategory,
+    incomeByCategory,
+    trend,
+    snackPlan,
+  ] = await Promise.all([
+    getMonthSummary(userId, month),
+    getMonthSummary(userId, prevMonth),
+    getExpenseByCategory(userId, month),
+    getExpenseByCategory(userId, prevMonth),
+    getIncomeByCategory(userId, month),
+    getMonthlyTrend(userId, month, 6),
+    getSnackPlan(userId),
+  ]);
 
   const net = summary.income - summary.expense;
   const savingRate =
     summary.income > 0 ? (net / summary.income) * 100 : null;
+
+  // Insight kebiasaan. Pola per hari memakai 91 hari (13 minggu) yang
+  // berakhir hari ini, atau akhir bulan untuk bulan yang sudah lewat, supaya
+  // tiap hari dalam seminggu muncul tepat 13 kali.
+  const today = todayString();
+  const isCurrentMonth = month === currentMonth();
+  // bulan yang belum terjadi tidak punya kebiasaan untuk dianalisis; tanpa
+  // pengecualian ini jendela 91 hari akan menyedot transaksi bulan berjalan
+  const isFutureMonth = month > currentMonth();
+  const monthDays = daysInMonth(month);
+  const windowEnd = isCurrentMonth
+    ? today
+    : `${month}-${String(monthDays).padStart(2, "0")}`;
+  const windowStart = addDays(windowEnd, -90);
+  const [weekdayRows, snackSpending] = isFutureMonth
+    ? [[], null]
+    : await Promise.all([
+        getSpendingByWeekday(
+          userId,
+          windowStart,
+          windowEnd,
+          snackPlan ? snackPlan.categoryIds : null
+        ),
+        snackPlan
+          ? getSnackSpending(userId, month, today, snackPlan.categoryIds)
+          : null,
+      ]);
+  const occurrences = countWeekdays(windowStart, windowEnd);
+  const totalsByDow = new Map(weekdayRows.map((r) => [r.dow, r.total]));
+  const insights = isFutureMonth ? [] : buildInsights({
+    money: formatIDR,
+    monthLabel: formatMonth(month),
+    isCurrentMonth,
+    daysElapsed: isCurrentMonth ? Number(today.slice(8, 10)) : monthDays,
+    daysInMonth: monthDays,
+    totalExpense: summary.expense,
+    prevTotalExpense: prevSummary.expense,
+    byCategory: expenseByCategory.map((c) => ({
+      id: c.categoryId,
+      name: c.name,
+      total: c.total,
+    })),
+    prevByCategory: prevExpenseByCategory.map((c) => ({
+      id: c.categoryId,
+      name: c.name,
+      total: c.total,
+    })),
+    weekday: {
+      scopeLabel: snackPlan ? "jajan" : "pengeluaran",
+      windowLabel: isCurrentMonth
+        ? "13 minggu terakhir"
+        : `13 minggu sampai akhir ${formatMonth(month)}`,
+      rows: occurrences.map((occ, dow) => ({
+        dow,
+        total: totalsByDow.get(dow) ?? 0,
+        occurrences: occ,
+      })),
+    },
+    snack:
+      snackPlan && snackSpending
+        ? {
+            limit: snackPlan.limit,
+            spentMonth: snackSpending.spentMonth,
+            count: snackSpending.count,
+          }
+        : null,
+  });
 
   return (
     <div className="space-y-6">
@@ -147,6 +238,40 @@ export default async function ReportsPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Insight kebiasaan: dihitung dari transaksi yang tercatat */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Kebiasaan belanjamu</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Dihitung dari transaksi yang kamu catat di {formatMonth(month)}.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {insights.length === 0 ? (
+            <EmptyState
+              compact
+              icon={Lightbulb}
+              title="Belum cukup data untuk insight"
+              description="Insight muncul setelah ada pengeluaran tercatat. Pola per hari butuh catatan beberapa minggu."
+            />
+          ) : (
+            <InsightList insights={insights} />
+          )}
+          {!snackPlan && (
+            <p className="text-sm text-muted-foreground">
+              Mau proyeksi dan frekuensi jajan juga?{" "}
+              <Link
+                href="/dashboard"
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                Atur jatah jajan di dashboard
+              </Link>
+              .
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Tren 6 bulan terakhir */}
       <Card>

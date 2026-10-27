@@ -24,6 +24,25 @@ export default function ReportsLoading() {
         ))}
       </div>
 
+      {/* insight kebiasaan */}
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-64 max-w-full" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex gap-3">
+              <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3.5 w-full" />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       <ChartCardSkeleton />
 
       <div className="grid gap-4 lg:grid-cols-2">

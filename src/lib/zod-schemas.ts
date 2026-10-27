@@ -113,6 +113,17 @@ export const categoryLimitSchema = z.object({
   amount: amountPositive("Batas harus lebih dari 0"),
 });
 
+// jatah jajan: batas per bulan + kategori pengeluaran yang dihitung jajan
+export const snackPlanSchema = z.object({
+  monthlyLimit: amountPositive("Batas jajan harus lebih dari 0"),
+  categoryIds: z
+    .array(z.string().min(1))
+    .min(1, "Pilih minimal satu kategori")
+    .max(100),
+});
+
+export type SnackPlanInput = z.infer<typeof snackPlanSchema>;
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type WalletInput = z.infer<typeof walletSchema>;

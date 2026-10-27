@@ -21,6 +21,8 @@ import {
   categoryLimits,
   goals,
   recurringRules,
+  snackCategories,
+  snackPlans,
   transactions,
   wallets,
   type AllocationBucket,
@@ -332,6 +334,100 @@ export async function getUserCategories(userId: string) {
     where: eq(categories.userId, userId),
     orderBy: (c, { asc }) => [asc(c.type), asc(c.name)],
   });
+}
+
+// ---------- Jatah jajan ----------
+
+export type SnackPlan = { limit: number; categoryIds: string[] };
+
+// null kalau belum diatur, atau kalau kategorinya kosong (setelah kategori
+// terakhirnya dihapus) karena batas tanpa kategori tidak berarti apa-apa
+export async function getSnackPlan(userId: string): Promise<SnackPlan | null> {
+  const [plan, links] = await Promise.all([
+    db.query.snackPlans.findFirst({ where: eq(snackPlans.userId, userId) }),
+    db
+      .select({ categoryId: snackCategories.categoryId })
+      .from(snackCategories)
+      .where(eq(snackCategories.userId, userId)),
+  ]);
+  if (!plan || links.length === 0) return null;
+  return {
+    limit: Number(plan.monthlyLimit),
+    categoryIds: links.map((l) => l.categoryId),
+  };
+}
+
+// Belanja kategori jajan: total satu bulan, total di tanggal `today`,
+// dan berapa kali transaksinya (untuk insight frekuensi).
+export async function getSnackSpending(
+  userId: string,
+  month: string,
+  today: string,
+  categoryIds: string[]
+) {
+  if (categoryIds.length === 0) return { spentMonth: 0, spentToday: 0, count: 0 };
+
+  const [row] = await db
+    .select({
+      month: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
+      today: sql<string>`coalesce(sum(case when ${transactions.date} = ${today}::date then ${transactions.amount} else 0 end), 0)`,
+      count: sql<string>`count(*)`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        eq(transactions.type, "expense"),
+        eq(monthOf, month),
+        inArray(transactions.categoryId, categoryIds)
+      )
+    );
+
+  return {
+    spentMonth: Number(row.month),
+    spentToday: Number(row.today),
+    count: Number(row.count),
+  };
+}
+
+export async function getSnackOverview(userId: string, today: string) {
+  const plan = await getSnackPlan(userId);
+  if (!plan) return null;
+  const spending = await getSnackSpending(
+    userId,
+    today.slice(0, 7),
+    today,
+    plan.categoryIds
+  );
+  return { plan, ...spending };
+}
+
+// Pengeluaran per hari dalam seminggu pada rentang tanggal. categoryIds
+// null = semua kategori pengeluaran. dow mengikuti Postgres (0 = Minggu).
+export async function getSpendingByWeekday(
+  userId: string,
+  from: string,
+  to: string,
+  categoryIds: string[] | null
+) {
+  if (categoryIds && categoryIds.length === 0) return [];
+
+  const conditions: SQL[] = [
+    eq(transactions.userId, userId),
+    eq(transactions.type, "expense"),
+    gte(transactions.date, from),
+    lte(transactions.date, to),
+  ];
+  if (categoryIds) conditions.push(inArray(transactions.categoryId, categoryIds));
+
+  const dow = sql<number>`extract(dow from ${transactions.date})::int`;
+  const rows = await db
+    .select({ dow, total: sql<string>`sum(${transactions.amount})` })
+    .from(transactions)
+    .where(and(...conditions))
+    .groupBy(sql`extract(dow from ${transactions.date})`);
+
+  return rows.map((r) => ({ dow: Number(r.dow), total: Number(r.total) }));
 }
 
 // ---------- Alokasi pendapatan ----------

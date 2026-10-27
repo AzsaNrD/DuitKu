@@ -14,6 +14,27 @@ export default function DashboardLoading() {
       <SummaryCardsSkeleton />
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+        {/* jatah jajan */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <Skeleton className="h-5 w-44" />
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] md:items-center md:gap-10">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-10 w-48" />
+                <Skeleton className="h-6 w-28" />
+              </div>
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-2.5 w-full rounded-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* alokasi */}
         <Card className="lg:col-span-2">
           <CardHeader>
