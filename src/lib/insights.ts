@@ -41,7 +41,20 @@ export type InsightInput = {
     rows: { dow: number; total: number; occurrences: number }[];
   } | null;
   // null = jatah jajan belum diatur
-  snack: { limit: number; spentMonth: number; count: number } | null;
+  snack: {
+    limit: number;
+    spentMonth: number;
+    count: number;
+    // Diisi kalau batas jajan dihitung per periode gajian: proyeksi memakai
+    // periode ini, bukan bulan kalender yang sedang dilihat. Kosong berarti
+    // batasnya per bulan kalender.
+    period?: {
+      spent: number;
+      daysElapsed: number;
+      length: number;
+      label: string;
+    };
+  } | null;
 };
 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -60,22 +73,36 @@ export function buildInsights(input: InsightInput): Insight[] {
 
   // 1. Proyeksi jajan terhadap batas (hanya bulan berjalan, setelah 5 hari
   //    supaya rata-ratanya tidak terlalu goyah)
+  const snackBasis = input.snack
+    ? (input.snack.period ??
+      (isCurrentMonth
+        ? {
+            spent: input.snack.spentMonth,
+            daysElapsed,
+            length: daysInMonth,
+            label: null,
+          }
+        : null))
+    : null;
   if (
     input.snack &&
-    isCurrentMonth &&
-    daysElapsed >= 5 &&
-    input.snack.spentMonth > 0
+    snackBasis &&
+    snackBasis.daysElapsed >= 5 &&
+    snackBasis.spent > 0
   ) {
     const projected = Math.round(
-      (input.snack.spentMonth / daysElapsed) * daysInMonth
+      (snackBasis.spent / snackBasis.daysElapsed) * snackBasis.length
     );
+    const endWord = snackBasis.label
+      ? `akhir periode (${snackBasis.label})`
+      : "akhir bulan";
     if (projected > input.snack.limit) {
       insights.push({
         id: "snack-projection",
         tone: "warn",
         icon: "projection",
         title: "Jajan diproyeksi melewati batas",
-        detail: `Dengan pola sejauh ini, jajan akhir bulan sekitar ${money(projected)}, sedangkan batasmu ${money(input.snack.limit)}. Selisihnya ${money(projected - input.snack.limit)}.`,
+        detail: `Dengan pola sejauh ini, jajan ${endWord} sekitar ${money(projected)}, sedangkan batasmu ${money(input.snack.limit)}. Selisihnya ${money(projected - input.snack.limit)}.`,
       });
     } else {
       insights.push({
@@ -83,7 +110,7 @@ export function buildInsights(input: InsightInput): Insight[] {
         tone: "good",
         icon: "projection",
         title: "Jajan masih di jalur aman",
-        detail: `Proyeksi akhir bulan sekitar ${money(projected)} dari batas ${money(input.snack.limit)}.`,
+        detail: `Proyeksi ${endWord} sekitar ${money(projected)} dari batas ${money(input.snack.limit)}.`,
       });
     }
   }

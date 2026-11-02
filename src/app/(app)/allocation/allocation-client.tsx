@@ -39,7 +39,9 @@ import {
   type AllocationOverrideInput,
   type CategoryLimitInput,
 } from "@/lib/zod-schemas";
-import { formatIDR, formatMonth } from "@/lib/format";
+import { formatIDR } from "@/lib/format";
+import { periodLabel, periodNoun } from "@/lib/period";
+import { PaydayButton } from "@/components/payday-settings";
 import { cn } from "@/lib/utils";
 import type {
   AllocationBucketProgress,
@@ -56,6 +58,7 @@ import {
 
 export function AllocationClient({
   month,
+  payday,
   overview,
   plan,
   expenseCategories,
@@ -63,6 +66,7 @@ export function AllocationClient({
   wallets,
 }: {
   month: string;
+  payday: number;
   overview: AllocationOverview;
   plan: AllocationPlan;
   expenseCategories: Category[];
@@ -78,6 +82,7 @@ export function AllocationClient({
   );
 
   const pending = ALLOCATION_PRESETS.find((p) => p.id === pendingPreset);
+  const periodText = periodLabel(month, payday);
 
   function applyPreset(presetId: string) {
     const preset = ALLOCATION_PRESETS.find((p) => p.id === presetId);
@@ -97,9 +102,14 @@ export function AllocationClient({
           </p>
         </div>
         {overview.hasPlan && (
-          <div className="flex items-center gap-2">
-            <MonthNav month={month} />
-            <Button variant="outline" onClick={() => setSettings("buckets")}>
+          <div className="flex flex-wrap items-center gap-2">
+            <MonthNav month={month} label={payday > 1 ? periodText : undefined} />
+            <PaydayButton payday={payday} />
+            <Button
+              variant="outline"
+              onClick={() => setSettings("buckets")}
+              className="max-sm:min-h-11"
+            >
               <Settings2 /> Atur
             </Button>
           </div>
@@ -110,6 +120,7 @@ export function AllocationClient({
         <>
           <IncomeCard
             month={month}
+            periodText={periodText}
             overview={overview}
             incomeCategories={incomeCategories}
             incomeCategoryIds={plan.incomeCategoryIds}
@@ -227,6 +238,8 @@ export function AllocationClient({
           open={overrideOpen}
           onOpenChange={setOverrideOpen}
           month={month}
+          periodText={periodText}
+          periodNoun={periodNoun(payday)}
           current={overview.income.used}
         />
       )}
@@ -235,6 +248,7 @@ export function AllocationClient({
         <CategoryLimitDialog
           category={limitFor}
           onOpenChange={(o) => !o && setLimitFor(null)}
+          noun={periodNoun(payday)}
         />
       )}
 
@@ -380,9 +394,11 @@ function CategoryLimitRow({
 function CategoryLimitDialog({
   category,
   onOpenChange,
+  noun,
 }: {
   category: AllocationCategoryProgress;
   onOpenChange: (open: boolean) => void;
+  noun: "bulan" | "periode";
 }) {
   const {
     register,
@@ -425,7 +441,7 @@ function CategoryLimitDialog({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <input type="hidden" {...register("categoryId")} />
           <div className="space-y-2">
-            <Label htmlFor="limit-amount">Batas per bulan (Rp)</Label>
+            <Label htmlFor="limit-amount">Batas per {noun} (Rp)</Label>
             <AmountInput id="limit-amount" min={1} {...register("amount")} />
             {errors.amount && (
               <p className="text-sm text-destructive">{errors.amount.message}</p>
@@ -460,6 +476,7 @@ function CategoryLimitDialog({
 
 function IncomeCard({
   month,
+  periodText,
   overview,
   incomeCategories,
   incomeCategoryIds,
@@ -467,6 +484,7 @@ function IncomeCard({
   onPickCategories,
 }: {
   month: string;
+  periodText: string;
   overview: AllocationOverview;
   incomeCategories: Category[];
   incomeCategoryIds: string[];
@@ -489,7 +507,7 @@ function IncomeCard({
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
-          Pemasukan {formatMonth(month)}
+          Pemasukan {periodText}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -532,7 +550,7 @@ function IncomeCard({
                 </button>
               </>
             ) : (
-              "Belum ada pemasukan dari kategori terpilih bulan ini. Catat pemasukannya dulu, atau ketik nominalnya manual."
+              `Belum ada pemasukan dari kategori terpilih di ${periodText}. Catat pemasukannya dulu, atau ketik nominalnya manual.`
             )}
           </p>
         )}
@@ -626,11 +644,15 @@ function OverrideDialog({
   open,
   onOpenChange,
   month,
+  periodText,
+  periodNoun,
   current,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   month: string;
+  periodText: string;
+  periodNoun: "bulan" | "periode";
   current: number;
 }) {
   const {
@@ -654,9 +676,9 @@ function OverrideDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Pemasukan {formatMonth(month)}</DialogTitle>
+          <DialogTitle>Pemasukan {periodText}</DialogTitle>
           <DialogDescription>
-            Nominal ini dipakai untuk bulan {formatMonth(month)} saja,
+            Nominal ini dipakai untuk {periodNoun} {periodText} saja,
             menggantikan hitungan otomatis dari transaksi.
           </DialogDescription>
         </DialogHeader>

@@ -348,6 +348,17 @@ export const allocationIncomeOverrides = pgTable(
   ]
 );
 
+// Pengaturan per pengguna. Saat ini hanya tanggal gajian: 1 = bulan kalender
+// biasa, 2 sampai 28 = periode dihitung dari tanggal itu (mis. 21 berarti
+// 21 Okt sampai 20 Nov). Tidak ada baris = bulan kalender.
+export const userSettings = pgTable("user_settings", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  paydayDay: integer("payday_day").notNull().default(1),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
 // Jatah jajan: satu batas bulanan per user, dan kategori mana saja yang
 // dihitung sebagai jajan. Dipisah dari tabel categories (sama seperti
 // pemetaan Alokasi) supaya tipe Category yang dipakai guest-store tetap sama.

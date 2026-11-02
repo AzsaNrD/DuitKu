@@ -14,6 +14,7 @@ import {
   getIncomeByCategory,
   getMonthlyTrend,
   getMonthSummary,
+  getPayday,
   getSnackPlan,
   getSnackSpending,
   getSpendingByWeekday,
@@ -26,6 +27,13 @@ import {
   todayString,
 } from "@/lib/format";
 import { addDays, countWeekdays, daysInMonth } from "@/lib/snack";
+import {
+  daysBetweenInclusive,
+  periodKeyOf,
+  periodLabel,
+  periodLength,
+  periodRange,
+} from "@/lib/period";
 import { buildInsights } from "@/lib/insights";
 import {
   Card,
@@ -81,6 +89,7 @@ export default async function ReportsPage({
     incomeByCategory,
     trend,
     snackPlan,
+    payday,
   ] = await Promise.all([
     getMonthSummary(userId, month),
     getMonthSummary(userId, prevMonth),
@@ -89,6 +98,7 @@ export default async function ReportsPage({
     getIncomeByCategory(userId, month),
     getMonthlyTrend(userId, month, 6),
     getSnackPlan(userId),
+    getPayday(userId),
   ]);
 
   const net = summary.income - summary.expense;
@@ -108,8 +118,15 @@ export default async function ReportsPage({
     ? today
     : `${month}-${String(monthDays).padStart(2, "0")}`;
   const windowStart = addDays(windowEnd, -90);
-  const [weekdayRows, snackSpending] = isFutureMonth
-    ? [[], null]
+  // Batas jajan berlaku per periode gajian, jadi kalau gajian bukan tanggal 1
+  // proyeksinya dihitung dari periode yang memuat hari ini, bukan dari bulan
+  // kalender yang sedang dibuka. Insight lain tetap per bulan kalender.
+  const usePayPeriod = payday > 1 && isCurrentMonth && !!snackPlan;
+  const payKey = periodKeyOf(today, payday);
+  const payRange = periodRange(payKey, payday);
+
+  const [weekdayRows, snackSpending, snackPeriodSpending] = isFutureMonth
+    ? [[], null, null]
     : await Promise.all([
         getSpendingByWeekday(
           userId,
@@ -119,6 +136,9 @@ export default async function ReportsPage({
         ),
         snackPlan
           ? getSnackSpending(userId, month, today, snackPlan.categoryIds)
+          : null,
+        usePayPeriod && snackPlan
+          ? getSnackSpending(userId, payRange, today, snackPlan.categoryIds)
           : null,
       ]);
   const occurrences = countWeekdays(windowStart, windowEnd);
@@ -158,6 +178,14 @@ export default async function ReportsPage({
             limit: snackPlan.limit,
             spentMonth: snackSpending.spentMonth,
             count: snackSpending.count,
+            period: snackPeriodSpending
+              ? {
+                  spent: snackPeriodSpending.spentMonth,
+                  daysElapsed: daysBetweenInclusive(payRange.start, today),
+                  length: periodLength(payKey, payday),
+                  label: periodLabel(payKey, payday),
+                }
+              : undefined,
           }
         : null,
   });

@@ -62,14 +62,26 @@ export type DailyAllowance = {
 // hari saat kamu jajan; yang berubah hanya sisa jatahnya.
 export function computeDailyAllowance(input: {
   limit: number;
+  // total belanja jajan dalam periode berjalan (bulan kalender atau
+  // periode gajian)
   spentMonth: number;
   spentToday: number;
   today: string;
+  // hari terakhir periode; kosong = akhir bulan kalender dari `today`
+  periodEnd?: string;
 }): DailyAllowance {
-  const { limit, spentMonth, spentToday, today } = input;
-  const dim = daysInMonth(today.slice(0, 7));
-  const day = Number(today.slice(8, 10));
-  const daysLeft = dim - day + 1;
+  const { limit, spentMonth, spentToday, today, periodEnd } = input;
+  let daysLeft: number;
+  if (periodEnd) {
+    const [y1, m1, d1] = today.split("-").map(Number);
+    const [y2, m2, d2] = periodEnd.split("-").map(Number);
+    const diff = Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1);
+    // periode yang sudah lewat tidak boleh menghasilkan 0 atau negatif
+    daysLeft = Math.max(1, Math.round(diff / 86_400_000) + 1);
+  } else {
+    const dim = daysInMonth(today.slice(0, 7));
+    daysLeft = dim - Number(today.slice(8, 10)) + 1;
+  }
 
   const spentBeforeToday = Math.max(0, spentMonth - spentToday);
   const budgetForRest = limit - spentBeforeToday;

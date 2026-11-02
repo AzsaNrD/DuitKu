@@ -17,6 +17,7 @@ import {
   getExpenseByCategory,
   getGoalsWithProgress,
   getMonthSummary,
+  getPayday,
   getSnackOverview,
   getTransactionsPage,
   getUserCategories,
@@ -40,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
 import { SnackCard } from "@/components/snack-card";
+import { periodKeyOf, periodLabel, periodNoun } from "@/lib/period";
 import { WalletSummaryList } from "@/components/wallet-summary-list";
 import {
   AllocationBucketRow,
@@ -66,6 +68,11 @@ export default async function DashboardPage() {
   const month = currentMonth();
   const today = todayString();
 
+  // Alokasi dan Jatah Jajan mengikuti periode gajian; ringkasan di atasnya
+  // tetap bulan kalender. Tanggal gajian diambil bersamaan dengan query lain
+  // dan hanya dua query itu yang menunggunya.
+  const paydayPromise = getPayday(userId);
+
   const [
     wallets,
     summary,
@@ -75,6 +82,7 @@ export default async function DashboardPage() {
     goals,
     allocation,
     snack,
+    payday,
   ] = await Promise.all([
     getWalletsWithBalances(userId),
     getMonthSummary(userId, month),
@@ -82,9 +90,14 @@ export default async function DashboardPage() {
     getTransactionsPage(userId, { pageSize: 8 }),
     getUserCategories(userId),
     getGoalsWithProgress(userId),
-    getAllocationOverview(userId, month),
-    getSnackOverview(userId, today),
+    paydayPromise.then((pd) =>
+      getAllocationOverview(userId, periodKeyOf(today, pd), undefined, pd)
+    ),
+    paydayPromise.then((pd) => getSnackOverview(userId, today, pd)),
+    paydayPromise,
   ]);
+  const periodText = periodLabel(periodKeyOf(today, payday), payday);
+  const periodWord = periodNoun(payday);
   const snackCategoryOptions = categories
     .filter((c) => c.type === "expense")
     .map((c) => ({ id: c.id, name: c.name, color: c.color, icon: c.icon }));
@@ -196,12 +209,20 @@ export default async function DashboardPage() {
           overview={snack}
           today={today}
           categories={snackCategoryOptions}
+          payday={payday}
         />
 
-        {/* Alokasi pendapatan bulan ini */}
+        {/* Alokasi pendapatan periode berjalan */}
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Alokasi Bulan Ini</CardTitle>
+          <CardHeader className="flex flex-row items-start justify-between gap-2">
+            <div className="space-y-0.5">
+              <CardTitle className="text-base">
+                Alokasi {periodWord === "bulan" ? "Bulan Ini" : "Periode Ini"}
+              </CardTitle>
+              {payday > 1 && (
+                <p className="text-xs text-muted-foreground">{periodText}</p>
+              )}
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -223,7 +244,7 @@ export default async function DashboardPage() {
                   </p>
                   {allocation.income.used === 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Belum ada pemasukan tercatat bulan ini
+                      Belum ada pemasukan tercatat {periodWord} ini
                     </p>
                   )}
                 </div>

@@ -10,7 +10,8 @@ Aplikasi web untuk mencatat uang masuk/keluar, mengelola dompet (cash, bank, e-w
 - 🏷️ **Kategori custom** — 12 kategori bawaan + bisa tambah sendiri (ikon & warna)
 - ⚖️ **Sesuaikan saldo** — masukkan saldo sebenarnya, selisihnya tercatat sebagai penyesuaian
 - 📐 **Alokasi gaji** — preset 50/30/20, 70/20/10, 40/30/20/10 atau buat sendiri; rencana vs realisasi per pos, plus batas pengeluaran per kategori (hijau/kuning/merah)
-- 🍪 **Jatah jajan** — batas jajan per bulan dan kategori yang dihitung, jadi tampil sisa jatah aman untuk hari ini
+- 📅 **Periode gajian** — atur tanggal gajian (mis. 21) dan Alokasi serta Jatah Jajan dihitung dari tanggal itu sampai sehari sebelum gajian berikutnya, bukan bulan kalender
+- 🍪 **Jatah jajan** — batas jajan per bulan (atau per periode gajian) dan kategori yang dihitung, jadi tampil sisa jatah aman untuk hari ini
 - 💡 **Insight kebiasaan** — kategori yang naik, hari paling boros, proyeksi akhir bulan, dibangun dari transaksi yang tercatat
 - 🐷 **Impian** — target tabungan, progres manual atau mengikuti saldo dompet
 - 🔁 **Transaksi berulang** — gaji, tagihan, langganan tercatat otomatis sesuai jadwal

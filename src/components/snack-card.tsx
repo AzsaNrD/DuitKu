@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Ban, CircleCheck, Cookie, TriangleAlert } from "lucide-react";
 import {
   Card,
@@ -18,6 +19,11 @@ type Overview = {
   plan: { limit: number; categoryIds: string[] };
   spentMonth: number;
   spentToday: number;
+  // akhir periode berjalan dan namanya; periode = bulan kalender atau
+  // rentang gajian, tergantung pengaturan tanggal gajian
+  periodEnd: string;
+  periodLabel: string;
+  periodNoun: "bulan" | "periode";
 } | null;
 
 // Setiap status punya ikon dan kata sendiri, jadi artinya tidak bergantung
@@ -58,10 +64,12 @@ export function SnackCard({
   overview,
   today,
   categories,
+  payday,
 }: {
   overview: Overview;
   today: string;
   categories: SnackCategoryOption[];
+  payday: number;
 }) {
   if (!overview) {
     return (
@@ -81,6 +89,7 @@ export function SnackCard({
                 plan={null}
                 label="Atur Jatah Jajan"
                 variant="default"
+                noun={payday > 1 ? "periode" : "bulan"}
               />
             }
           />
@@ -90,11 +99,13 @@ export function SnackCard({
   }
 
   const { plan, spentMonth, spentToday } = overview;
+  const noun = overview.periodNoun;
   const a = computeDailyAllowance({
     limit: plan.limit,
     spentMonth,
     spentToday,
     today,
+    periodEnd: overview.periodEnd,
   });
   const status = STATUS_STYLE[a.status];
   const ratio = plan.limit > 0 ? spentMonth / plan.limit : 0;
@@ -110,10 +121,10 @@ export function SnackCard({
     headlineValue = Math.abs(a.leftToday);
   } else if (a.status === "habis") {
     if (a.monthRemaining < 0) {
-      headlineLabel = "Lewat dari batas bulan ini";
+      headlineLabel = `Lewat dari batas ${noun} ini`;
       headlineValue = Math.abs(a.monthRemaining);
     } else {
-      headlineLabel = "Sisa batas bulan ini";
+      headlineLabel = `Sisa batas ${noun} ini`;
       headlineValue = Math.max(0, a.monthRemaining);
     }
   }
@@ -130,6 +141,7 @@ export function SnackCard({
           categories={categories}
           plan={plan}
           label="Atur"
+          noun={noun}
         />
       </CardHeader>
       <CardContent>
@@ -163,7 +175,7 @@ export function SnackCard({
 
           <div className="space-y-3">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <p className="text-sm text-muted-foreground">Jajan bulan ini</p>
+              <p className="text-sm text-muted-foreground">Jajan {noun} ini</p>
               <p className="text-sm">
                 <span className="money font-semibold">
                   {formatIDR(spentMonth)}
@@ -176,7 +188,7 @@ export function SnackCard({
             </div>
             <div
               role="progressbar"
-              aria-label="Pemakaian batas jajan bulan ini"
+              aria-label={`Pemakaian batas jajan ${noun} ini`}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={barPct}
@@ -190,8 +202,19 @@ export function SnackCard({
             </div>
             <div className="space-y-1 text-sm text-muted-foreground">
               <p>
-                {realPct}% terpakai, sisa {a.daysLeft} hari bulan ini.
+                {realPct}% terpakai, sisa {a.daysLeft} hari {noun} ini.
               </p>
+              {noun === "periode" && (
+                <p>
+                  Periode {overview.periodLabel}.{" "}
+                  <Link
+                    href="/allocation"
+                    className="font-medium text-foreground underline underline-offset-4"
+                  >
+                    Ubah tanggal gajian
+                  </Link>
+                </p>
+              )}
               {a.tomorrowAllowance !== null && a.status !== "habis" && (
                 <p>
                   Kalau hari ini tidak jajan lagi, jatah besok sekitar{" "}

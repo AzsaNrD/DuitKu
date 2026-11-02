@@ -45,10 +45,13 @@ export function SnackSettingsButton({
   label,
   variant = "ghost",
   size = "sm",
+  noun = "bulan",
 }: {
   categories: SnackCategoryOption[];
   plan: { limit: number; categoryIds: string[] } | null;
   label: string;
+  // "bulan" atau "periode" (kalau gajian bukan tanggal 1)
+  noun?: "bulan" | "periode";
   variant?: "ghost" | "outline" | "default";
   size?: "sm" | "default";
 }) {
@@ -80,6 +83,7 @@ export function SnackSettingsButton({
           onOpenChange={handleOpenChange}
           categories={categories}
           plan={plan}
+          noun={noun}
         />
       )}
     </>
@@ -91,11 +95,13 @@ function SnackSettingsDialog({
   onOpenChange,
   categories,
   plan,
+  noun,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categories: SnackCategoryOption[];
   plan: { limit: number; categoryIds: string[] } | null;
+  noun: "bulan" | "periode";
 }) {
   const {
     register,
@@ -134,7 +140,7 @@ function SnackSettingsDialog({
         <DialogHeader>
           <DialogTitle>Atur jatah jajan</DialogTitle>
           <DialogDescription>
-            Tentukan batas jajan sebulan dan kategori yang dihitung. Jatah
+            Tentukan batas jajan per {noun} dan kategori yang dihitung. Jatah
             harian dihitung dari sisa batas dibagi sisa hari.
           </DialogDescription>
         </DialogHeader>
@@ -156,7 +162,7 @@ function SnackSettingsDialog({
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="snack-limit">Batas jajan per bulan (Rp)</Label>
+              <Label htmlFor="snack-limit">Batas jajan per {noun} (Rp)</Label>
               <AmountInput
                 id="snack-limit"
                 placeholder="cth: 1.500.000"

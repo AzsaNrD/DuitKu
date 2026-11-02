@@ -500,8 +500,8 @@ function WalletMapping({
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
-        Transfer ke dompet tabungan dihitung sebagai tabungan bulan itu,
-        transfer keluar darinya mengurangi. Pemasukan yang langsung masuk ke
+        Transfer ke dompet tabungan dihitung sebagai tabungan di periode
+        transfernya, transfer keluar darinya mengurangi. Pemasukan yang langsung masuk ke
         dompet ini tetap dihitung sebagai pemasukan.
       </p>
       <div className="divide-y rounded-lg border">

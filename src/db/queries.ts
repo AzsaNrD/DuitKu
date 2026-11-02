@@ -12,6 +12,12 @@ import {
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
+  periodKeyOf,
+  periodLabel,
+  periodNoun,
+  periodRange,
+} from "@/lib/period";
+import {
   allocationBuckets,
   allocationCategoryLinks,
   allocationIncomeCategories,
@@ -24,6 +30,7 @@ import {
   snackCategories,
   snackPlans,
   transactions,
+  userSettings,
   wallets,
   type AllocationBucket,
   type Goal,
@@ -83,6 +90,25 @@ export async function getWalletsWithBalances(
 
 const monthOf = sql<string>`to_char(${transactions.date}, 'YYYY-MM')`;
 
+// Rentang tanggal inklusif, dipakai untuk periode gajian yang tidak sejajar
+// dengan bulan kalender (mis. 21 Okt sampai 20 Nov).
+export type DateRange = { start: string; end: string };
+
+const inRange = (r: DateRange) =>
+  and(gte(transactions.date, r.start), lte(transactions.date, r.end));
+
+// bulan kalender ("YYYY-MM") atau rentang tanggal sebagai kondisi query
+const inPeriod = (p: string | DateRange) =>
+  typeof p === "string" ? eq(monthOf, p) : inRange(p);
+
+// Tanggal gajian pengguna; 1 (bulan kalender) kalau belum diatur
+export async function getPayday(userId: string): Promise<number> {
+  const row = await db.query.userSettings.findFirst({
+    where: eq(userSettings.userId, userId),
+  });
+  return row?.paydayDay ?? 1;
+}
+
 // Total pemasukan & pengeluaran satu bulan (transfer tidak dihitung)
 export async function getMonthSummary(userId: string, month: string) {
   const [row] = await db
@@ -96,7 +122,10 @@ export async function getMonthSummary(userId: string, month: string) {
   return { income: Number(row.income), expense: Number(row.expense) };
 }
 
-export async function getExpenseByCategory(userId: string, month: string) {
+export async function getExpenseByCategory(
+  userId: string,
+  period: string | DateRange
+) {
   const rows = await db
     .select({
       categoryId: transactions.categoryId,
@@ -110,7 +139,7 @@ export async function getExpenseByCategory(userId: string, month: string) {
       and(
         eq(transactions.userId, userId),
         eq(transactions.type, "expense"),
-        eq(monthOf, month)
+        inPeriod(period)
       )
     )
     .groupBy(transactions.categoryId, categories.name, categories.color)
@@ -357,11 +386,12 @@ export async function getSnackPlan(userId: string): Promise<SnackPlan | null> {
   };
 }
 
-// Belanja kategori jajan: total satu bulan, total di tanggal `today`,
-// dan berapa kali transaksinya (untuk insight frekuensi).
+// Belanja kategori jajan: total satu periode (bulan kalender atau rentang
+// gajian), total di tanggal `today`, dan berapa kali transaksinya (untuk
+// insight frekuensi).
 export async function getSnackSpending(
   userId: string,
-  month: string,
+  period: string | DateRange,
   today: string,
   categoryIds: string[]
 ) {
@@ -378,7 +408,7 @@ export async function getSnackSpending(
       and(
         eq(transactions.userId, userId),
         eq(transactions.type, "expense"),
-        eq(monthOf, month),
+        inPeriod(period),
         inArray(transactions.categoryId, categoryIds)
       )
     );
@@ -390,16 +420,25 @@ export async function getSnackSpending(
   };
 }
 
-export async function getSnackOverview(userId: string, today: string) {
+// Jatah jajan periode berjalan: periode ditentukan dari tanggal gajian
+// (1 = bulan kalender), jadi `periodEnd` dipakai untuk menghitung sisa hari.
+export async function getSnackOverview(
+  userId: string,
+  today: string,
+  payday = 1
+) {
   const plan = await getSnackPlan(userId);
   if (!plan) return null;
-  const spending = await getSnackSpending(
-    userId,
-    today.slice(0, 7),
-    today,
-    plan.categoryIds
-  );
-  return { plan, ...spending };
+  const key = periodKeyOf(today, payday);
+  const range = periodRange(key, payday);
+  const spending = await getSnackSpending(userId, range, today, plan.categoryIds);
+  return {
+    plan,
+    ...spending,
+    periodEnd: range.end,
+    periodLabel: periodLabel(key, payday),
+    periodNoun: periodNoun(payday),
+  };
 }
 
 // Pengeluaran per hari dalam seminggu pada rentang tanggal. categoryIds
@@ -505,18 +544,23 @@ export type AllocationOverview = {
   unmapped: { total: number; items: { name: string; total: number }[] };
 };
 
-// Rencana vs realisasi satu bulan:
-// - pemasukan = transaksi income bulan itu di kategori terpilih (atau override)
-// - pos pengeluaran = expense bulan itu di kategori yang dipetakan ke pos
+// Rencana vs realisasi satu periode (bulan kalender, atau rentang gajian
+// kalau tanggal gajian bukan 1):
+// - pemasukan = transaksi income periode itu di kategori terpilih (atau override)
+// - pos pengeluaran = expense periode itu di kategori yang dipetakan ke pos
 // - pos tabungan = transfer masuk ke dompet pos dikurangi transfer keluar
 //   darinya (transfer antar dompet dalam pos yang sama tidak dihitung)
 // Transaksi adjustment tidak ikut karena semua filter di sini per-tipe.
 export async function getAllocationOverview(
   userId: string,
+  // kunci periode: bulan tempat periode dimulai ("YYYY-MM")
   month: string,
-  plan?: AllocationPlan
+  plan?: AllocationPlan,
+  // tanggal gajian; 1 = bulan kalender
+  payday = 1
 ): Promise<AllocationOverview> {
   const p = plan ?? (await getAllocationPlan(userId));
+  const range = periodRange(month, payday);
   const emptyIncome = {
     auto: 0,
     override: null,
@@ -550,7 +594,7 @@ export async function getAllocationOverview(
               and(
                 eq(transactions.userId, userId),
                 eq(transactions.type, "income"),
-                eq(monthOf, month),
+                inRange(range),
                 inArray(transactions.categoryId, p.incomeCategoryIds)
               )
             )
@@ -561,7 +605,7 @@ export async function getAllocationOverview(
           eq(allocationIncomeOverrides.month, month)
         ),
       }),
-      getExpenseByCategory(userId, month),
+      getExpenseByCategory(userId, range),
       db
         .select({
           walletId: transactions.walletId,
@@ -573,7 +617,7 @@ export async function getAllocationOverview(
           and(
             eq(transactions.userId, userId),
             eq(transactions.type, "transfer"),
-            eq(monthOf, month)
+            inRange(range)
           )
         ),
       getUserCategories(userId),
