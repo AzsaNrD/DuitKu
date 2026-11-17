@@ -52,9 +52,9 @@ export function RegisterForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm [--card-spacing:--spacing(6)]">
       <CardHeader className="text-center">
-        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-bento">
           <Wallet className="h-6 w-6" />
         </div>
         <CardTitle className="text-xl">Buat Akun DuitKu</CardTitle>
@@ -91,7 +91,7 @@ export function RegisterForm() {
             )}
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Memproses..." : "Daftar"}
           </Button>
         </form>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useOptimisticPath } from "@/components/nav-pending";
 import {
   ArrowLeftRight,
   ChartPie,
@@ -29,7 +29,7 @@ export const NAV_ITEMS = [
 ] as const;
 
 export function SidebarNav() {
-  const pathname = usePathname();
+  const { current: pathname, onNavigate } = useOptimisticPath();
   return (
     <nav className="flex flex-col gap-1.5">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -38,6 +38,7 @@ export function SidebarNav() {
           <Link
             key={href}
             href={href}
+            onClick={onNavigate(href)}
             className={cn(
               "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all",
               active
@@ -55,7 +56,7 @@ export function SidebarNav() {
 }
 
 export function BottomNav() {
-  const pathname = usePathname();
+  const { current: pathname, onNavigate } = useOptimisticPath();
   const items = NAV_ITEMS.filter(
     (item) => !("mobileHidden" in item && item.mobileHidden)
   );
@@ -68,8 +69,9 @@ export function BottomNav() {
             <Link
               key={href}
               href={href}
+              onClick={onNavigate(href)}
               className={cn(
-                "flex flex-col items-center gap-0.5 py-2 text-[10px]",
+                "flex flex-col items-center gap-0.5 py-2 text-[11px]",
                 active ? "text-primary" : "text-muted-foreground"
               )}
             >

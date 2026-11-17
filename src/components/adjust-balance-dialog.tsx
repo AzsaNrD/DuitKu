@@ -98,8 +98,8 @@ export function AdjustBalanceDialog({
               className={cn(
                 "money text-sm font-medium",
                 diff > 0
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400"
+                  ? "text-income"
+                  : "text-expense"
               )}
             >
               Selisih: {diff > 0 ? "+" : "-"}

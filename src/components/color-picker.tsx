@@ -25,14 +25,14 @@ export function ColorPicker({
   onChange: (color: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid grid-cols-7 gap-2">
       {PRESET_COLORS.map((color) => (
         <button
           key={color}
           type="button"
           onClick={() => onChange(color)}
           className={cn(
-            "h-7 w-7 rounded-full border-2 transition-transform",
+            "aspect-square w-full rounded-full border-2 transition-transform",
             value === color
               ? "scale-110 border-foreground"
               : "border-transparent hover:scale-105"

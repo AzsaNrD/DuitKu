@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireUserId } from "@/lib/require-user";
-import { processDueRecurring } from "@/lib/recurring";
+import { loadWithDueRecurring } from "@/lib/recurring";
 import {
   getTransactionsPage,
   getUserCategories,
@@ -19,7 +19,6 @@ export default async function TransactionsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const userId = await requireUserId();
-  await processDueRecurring(userId);
   const params = await searchParams;
 
   const first = (v: string | string[] | undefined) =>
@@ -38,11 +37,13 @@ export default async function TransactionsPage({
     page: Number(first(params.page)) || 1,
   };
 
-  const [data, wallets, categories] = await Promise.all([
-    getTransactionsPage(userId, filters),
-    getWalletsWithBalances(userId),
-    getUserCategories(userId),
-  ]);
+  const [data, wallets, categories] = await loadWithDueRecurring(userId, () =>
+    Promise.all([
+      getTransactionsPage(userId, filters),
+      getWalletsWithBalances(userId),
+      getUserCategories(userId),
+    ])
+  );
 
   return (
     <TransactionsClient

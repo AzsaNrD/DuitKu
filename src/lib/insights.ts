@@ -25,6 +25,8 @@ type CategoryTotal = { id: string | null; name: string; total: number };
 export type InsightInput = {
   money: (n: number) => string;
   monthLabel: string;
+  // satuan waktunya: "bulan" (bulan kalender) atau "periode" (periode gajian)
+  noun?: "bulan" | "periode";
   isCurrentMonth: boolean;
   daysElapsed: number;
   daysInMonth: number;
@@ -69,6 +71,7 @@ function keyOf(c: CategoryTotal) {
 
 export function buildInsights(input: InsightInput): Insight[] {
   const { money, monthLabel, isCurrentMonth, daysElapsed, daysInMonth } = input;
+  const n = input.noun ?? "bulan";
   const insights: Insight[] = [];
 
   // 1. Proyeksi jajan terhadap batas (hanya bulan berjalan, setelah 5 hari
@@ -95,7 +98,7 @@ export function buildInsights(input: InsightInput): Insight[] {
     );
     const endWord = snackBasis.label
       ? `akhir periode (${snackBasis.label})`
-      : "akhir bulan";
+      : `akhir ${n}`;
     if (projected > input.snack.limit) {
       insights.push({
         id: "snack-projection",
@@ -132,11 +135,11 @@ export function buildInsights(input: InsightInput): Insight[] {
       icon: "projection",
       title:
         ratio > 1.1
-          ? "Pengeluaran bulan ini melaju lebih tinggi"
+          ? `Pengeluaran ${n} ini melaju lebih tinggi`
           : ratio < 0.9
-            ? "Pengeluaran bulan ini lebih hemat"
-            : "Pengeluaran bulan ini sebanding bulan lalu",
-      detail: `Kalau lajunya sama sampai akhir bulan, totalnya sekitar ${money(projected)}. Bulan lalu ${money(input.prevTotalExpense)}.`,
+            ? `Pengeluaran ${n} ini lebih hemat`
+            : `Pengeluaran ${n} ini sebanding ${n} lalu`,
+      detail: `Kalau lajunya sama sampai akhir ${n}, totalnya sekitar ${money(projected)}. ${n[0].toUpperCase()}${n.slice(1)} lalu ${money(input.prevTotalExpense)}.`,
     });
   }
 
@@ -170,13 +173,15 @@ export function buildInsights(input: InsightInput): Insight[] {
       tone: "warn",
       icon: "trend-up",
       title:
-        biggestUp.prev > 0
-          ? `${biggestUp.name} naik ${Math.round((biggestUp.delta / biggestUp.prev) * 100)}% dari bulan lalu`
-          : `${biggestUp.name} baru muncul bulan ini`,
+        biggestUp.prev === 0
+          ? `${biggestUp.name} baru muncul ${n} ini`
+          : biggestUp.delta / biggestUp.prev >= 5
+            ? `${biggestUp.name} naik sekitar ${Math.round(biggestUp.total / biggestUp.prev)} kali lipat dari ${n} lalu`
+            : `${biggestUp.name} naik ${Math.round((biggestUp.delta / biggestUp.prev) * 100)}% dari ${n} lalu`,
       detail:
         biggestUp.prev > 0
           ? `Dari ${money(biggestUp.prev)} menjadi ${money(biggestUp.total)}, bertambah ${money(biggestUp.delta)}. Ini yang paling menambah pengeluaranmu.`
-          : `Bulan lalu belum ada pengeluaran di kategori ini. Bulan ini sudah ${money(biggestUp.total)}.`,
+          : `${n[0].toUpperCase()}${n.slice(1)} lalu belum ada pengeluaran di kategori ini. ${n[0].toUpperCase()}${n.slice(1)} ini sudah ${money(biggestUp.total)}.`,
     });
   }
 
@@ -220,7 +225,7 @@ export function buildInsights(input: InsightInput): Insight[] {
       tone: "info",
       icon: "repeat",
       title: `${input.snack.count} kali jajan di ${monthLabel}`,
-      detail: `Rata-rata ${money(avg)} sekali jajan. Kalau berkurang satu kali per minggu, sekitar ${money(avg * 4)} per bulan bisa tersisa.`,
+      detail: `Rata-rata ${money(avg)} sekali jajan. Kalau berkurang satu kali per minggu, sekitar ${money(avg * 4)} per ${n} bisa tersisa.`,
     });
   }
 
@@ -245,7 +250,7 @@ export function buildInsights(input: InsightInput): Insight[] {
       id: "category-down",
       tone: "good",
       icon: "trend-down",
-      title: `${biggestDown.name} turun ${Math.round((Math.abs(biggestDown.delta) / biggestDown.prev) * 100)}% dari bulan lalu`,
+      title: `${biggestDown.name} turun ${Math.round((Math.abs(biggestDown.delta) / biggestDown.prev) * 100)}% dari ${n} lalu`,
       detail: `Dari ${money(biggestDown.prev)} menjadi ${money(biggestDown.total)}, berkurang ${money(Math.abs(biggestDown.delta))}.`,
     });
   }

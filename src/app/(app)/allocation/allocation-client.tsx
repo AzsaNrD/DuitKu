@@ -315,7 +315,7 @@ function BucketCategories({
         <span>
           {open ? "Sembunyikan" : "Lihat"} {bucket.categories.length} kategori
           {overCount > 0 && (
-            <span className="text-red-600 dark:text-red-400">
+            <span className="text-expense">
               , {overCount} lewat batas
             </span>
           )}
@@ -362,7 +362,7 @@ function CategoryLimitRow({
               {formatIDR(spent)}
               {limit !== null && <> dari batas {formatIDR(limit)}</>}
               {limit !== null && spent > limit && (
-                <span className="ml-1 font-medium text-red-600 dark:text-red-400">
+                <span className="ml-1 font-medium text-expense">
                   (lebih {formatIDR(spent - limit)})
                 </span>
               )}

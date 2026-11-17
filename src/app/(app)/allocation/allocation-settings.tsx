@@ -314,8 +314,8 @@ function BucketEditor({
           className={cn(
             "text-sm font-medium",
             total === 100
-              ? "text-green-600 dark:text-green-400"
-              : "text-red-600 dark:text-red-400"
+              ? "text-income"
+              : "text-expense"
           )}
         >
           Total {total}%

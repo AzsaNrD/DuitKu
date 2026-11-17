@@ -119,6 +119,7 @@ export function TransactionsClient({
   const [editing, setEditing] = useState<EditableTransaction | null>(null);
   const [deleting, setDeleting] = useState<TransactionRow | null>(null);
   const [search, setSearch] = useState(filters.q ?? "");
+  const [confirmExport, setConfirmExport] = useState(false);
 
   function setParam(key: string, value: string | undefined) {
     const params = new URLSearchParams(searchParams.toString());
@@ -168,6 +169,24 @@ export function TransactionsClient({
     });
   }
 
+  function startExport() {
+    if (guest) {
+      guest.onExportCsv();
+      return;
+    }
+    // route handler /api/export menerima query filter yang sama
+    const a = document.createElement("a");
+    a.href = `/api/export?${searchParams.toString()}`;
+    a.download = "";
+    a.click();
+  }
+
+  // CSV kosong cuma berisi baris judul, jadi tanya dulu sebelum mengunduh
+  function handleExport() {
+    if (data.total === 0) setConfirmExport(true);
+    else startExport();
+  }
+
   const typeItems = [
     { value: ALL, label: "Semua Tipe" },
     { value: "expense", label: "Keluar" },
@@ -189,27 +208,13 @@ export function TransactionsClient({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Transaksi</h1>
         <div className="flex gap-2">
-          {guest ? (
-            <Button
-              variant="outline"
-              title="Download CSV (mengikuti filter aktif)"
-              onClick={guest.onExportCsv}
-            >
-              <Download /> <span className="hidden sm:inline">Export</span>
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              title="Download CSV (mengikuti filter aktif)"
-              nativeButton={false}
-              render={
-                // route handler /api/export menerima query filter yang sama
-                <a href={`/api/export?${searchParams.toString()}`} download />
-              }
-            >
-              <Download /> <span className="hidden sm:inline">Export</span>
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            title="Unduh CSV (mengikuti filter aktif)"
+            onClick={handleExport}
+          >
+            <Download /> <span className="hidden sm:inline">Ekspor</span>
+          </Button>
           {!guest && (
             <Button
               variant="outline"
@@ -249,7 +254,7 @@ export function TransactionsClient({
               value={filters.type ?? ALL}
               onValueChange={(v) => setParam("type", v as string)}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" aria-label="Filter tipe">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -265,7 +270,7 @@ export function TransactionsClient({
               value={filters.walletId ?? ALL}
               onValueChange={(v) => setParam("wallet", v as string)}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" aria-label="Filter dompet">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -281,7 +286,7 @@ export function TransactionsClient({
               value={filters.categoryId ?? ALL}
               onValueChange={(v) => setParam("category", v as string)}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" aria-label="Filter kategori">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -314,11 +319,17 @@ export function TransactionsClient({
               }}
             >
               <Input
+                aria-label="Cari catatan"
                 placeholder="Cari catatan..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              <Button type="submit" variant="outline" size="icon">
+              <Button
+                type="submit"
+                variant="outline"
+                size="icon"
+                aria-label="Cari"
+              >
                 <Search className="h-4 w-4" />
               </Button>
             </form>
@@ -381,8 +392,8 @@ export function TransactionsClient({
                       className={cn(
                         "money text-xs font-semibold",
                         net > 0
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-red-600 dark:text-red-400"
+                          ? "text-income"
+                          : "text-expense"
                       )}
                     >
                       {net > 0 ? "+" : "-"}
@@ -415,6 +426,7 @@ export function TransactionsClient({
             size="icon"
             disabled={data.page <= 1}
             onClick={() => setParam("page", String(data.page - 1))}
+            aria-label="Halaman sebelumnya"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -426,6 +438,7 @@ export function TransactionsClient({
             size="icon"
             disabled={data.page >= data.totalPages}
             onClick={() => setParam("page", String(data.page + 1))}
+            aria-label="Halaman berikutnya"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -442,6 +455,34 @@ export function TransactionsClient({
           guest={guest}
         />
       )}
+
+      <Dialog open={confirmExport} onOpenChange={setConfirmExport}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tidak ada transaksi untuk diunduh</DialogTitle>
+            <DialogDescription>
+              {hasFilters
+                ? "Tidak ada transaksi yang cocok dengan filter aktif."
+                : "Kamu belum mencatat transaksi apa pun."}{" "}
+              File CSV hanya akan berisi baris judul kolom. Tetap lanjut
+              mengunduh?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmExport(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmExport(false);
+                startExport();
+              }}
+            >
+              Tetap Unduh
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent>
@@ -530,9 +571,9 @@ export function TransactionItem({
       <span
         className={cn(
           "money shrink-0 text-sm font-semibold",
-          isIncome && "text-green-600 dark:text-green-400",
-          row.type === "expense" && "text-red-600 dark:text-red-400",
-          isAdjustment && "text-amber-600 dark:text-amber-400"
+          isIncome && "text-income",
+          row.type === "expense" && "text-expense",
+          isAdjustment && "text-warning"
         )}
       >
         {isIncome
@@ -549,12 +590,22 @@ export function TransactionItem({
       {(onEdit || onDelete) && (
         <div className="flex shrink-0 gap-1">
           {onEdit && !isAdjustment && (
-            <Button variant="ghost" size="icon" onClick={onEdit}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onEdit}
+              aria-label="Edit transaksi"
+            >
               <Pencil className="h-4 w-4" />
             </Button>
           )}
           {onDelete && (
-            <Button variant="ghost" size="icon" onClick={onDelete}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onDelete}
+              aria-label="Hapus transaksi"
+            >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           )}

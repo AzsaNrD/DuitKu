@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ConnectionStatus } from "@/components/connection-status";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
 });
 
@@ -17,11 +17,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "DuitKu: Catatan Keuangan Pribadi",
+    default: "DuitKu | Catatan Keuangan Pribadi",
     template: "%s | DuitKu",
   },
   description:
-    "Aplikasi pencatatan keuangan pribadi: catat uang masuk & keluar, kelola dompet, alokasi gaji, impian, dan laporan bulanan.",
+    "Aplikasi keuangan pribadi untuk mencatat uang masuk & keluar, kelola dompet, alokasi gaji, impian, dan laporan bulanan.",
   appleWebApp: {
     capable: true,
     title: "DuitKu",
@@ -35,8 +35,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
   ],
   // keyboard HP ikut menyusutkan viewport, supaya dialog (max-h dvh)
   // ter-clamp dan bisa di-scroll, tidak terpotong di balik keyboard
@@ -52,9 +52,9 @@ export default function RootLayout({
     <html
       lang="id"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${jakarta.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {/* set atribut hide-balance sebelum paint supaya tidak
             sempat terlihat sekejap saat preferensinya "sembunyi" */}
         <script

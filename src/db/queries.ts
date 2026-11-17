@@ -109,15 +109,16 @@ export async function getPayday(userId: string): Promise<number> {
   return row?.paydayDay ?? 1;
 }
 
-// Total pemasukan & pengeluaran satu bulan (transfer tidak dihitung)
-export async function getMonthSummary(userId: string, month: string) {
+// Total pemasukan & pengeluaran satu bulan kalender atau satu periode gajian
+// (transfer tidak dihitung)
+export async function getMonthSummary(userId: string, period: string | DateRange) {
   const [row] = await db
     .select({
       income: sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else 0 end), 0)`,
       expense: sql<string>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.amount} else 0 end), 0)`,
     })
     .from(transactions)
-    .where(and(eq(transactions.userId, userId), eq(monthOf, month)));
+    .where(and(eq(transactions.userId, userId), inPeriod(period)));
 
   return { income: Number(row.income), expense: Number(row.expense) };
 }
@@ -148,7 +149,10 @@ export async function getExpenseByCategory(
   return rows.map((r) => ({ ...r, total: Number(r.total) }));
 }
 
-export async function getIncomeByCategory(userId: string, month: string) {
+export async function getIncomeByCategory(
+  userId: string,
+  period: string | DateRange
+) {
   const rows = await db
     .select({
       categoryId: transactions.categoryId,
@@ -162,7 +166,7 @@ export async function getIncomeByCategory(userId: string, month: string) {
       and(
         eq(transactions.userId, userId),
         eq(transactions.type, "income"),
-        eq(monthOf, month)
+        inPeriod(period)
       )
     )
     .groupBy(transactions.categoryId, categories.name, categories.color)
@@ -288,18 +292,32 @@ export type RecurringRow = Awaited<
 
 // Tren pemasukan/pengeluaran per bulan, `months` bulan terakhir
 // yang berakhir di `endMonth` (format "YYYY-MM")
+// `endMonth` dan `month` di hasil adalah kunci periode ("YYYY-MM" = bulan
+// tempat periode dimulai). Dengan payday > 1 transaksi dikelompokkan per
+// periode gajian: tanggal digeser mundur (payday - 1) hari, jadi 21 Nov
+// masuk "2026-11" dan 20 Nov masih "2026-10".
 export async function getMonthlyTrend(
   userId: string,
   endMonth: string,
-  months = 6
+  months = 6,
+  payday = 1
 ) {
+  // Angka pergeserannya ditulis langsung ke SQL, bukan sebagai parameter:
+  // dengan parameter, SELECT dan GROUP BY menjadi dua ekspresi berbeda
+  // ($1 dan $7) dan Postgres menolak query-nya. Aman karena hanya bilangan
+  // bulat hasil Math.trunc.
+  const shiftDays = Math.max(0, Math.trunc(payday) - 1);
+  const keyOf =
+    shiftDays === 0
+      ? monthOf
+      : sql<string>`to_char(${transactions.date} - ${sql.raw(String(shiftDays))}, 'YYYY-MM')`;
   const [ey, em] = endMonth.split("-").map(Number);
   const startTotal = ey * 12 + (em - 1) - (months - 1);
   const startMonth = `${Math.floor(startTotal / 12)}-${String((startTotal % 12) + 1).padStart(2, "0")}`;
 
   const rows = await db
     .select({
-      month: monthOf,
+      month: keyOf,
       income: sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else 0 end), 0)`,
       expense: sql<string>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.amount} else 0 end), 0)`,
     })
@@ -307,12 +325,12 @@ export async function getMonthlyTrend(
     .where(
       and(
         eq(transactions.userId, userId),
-        gte(monthOf, startMonth),
-        lte(monthOf, endMonth)
+        gte(keyOf, startMonth),
+        lte(keyOf, endMonth)
       )
     )
-    .groupBy(monthOf)
-    .orderBy(monthOf);
+    .groupBy(keyOf)
+    .orderBy(keyOf);
 
   const byMonth = new Map(rows.map((r) => [r.month, r]));
   const result: { month: string; income: number; expense: number }[] = [];
@@ -425,9 +443,13 @@ export async function getSnackSpending(
 export async function getSnackOverview(
   userId: string,
   today: string,
-  payday = 1
+  payday = 1,
+  // rencana yang sudah diambil pemanggil (null = memang belum ada), supaya
+  // tidak diambil lagi dan bisa berjalan bersamaan dengan pengambilan payday
+  preloadedPlan?: SnackPlan | null
 ) {
-  const plan = await getSnackPlan(userId);
+  const plan =
+    preloadedPlan === undefined ? await getSnackPlan(userId) : preloadedPlan;
   if (!plan) return null;
   const key = periodKeyOf(today, payday);
   const range = periodRange(key, payday);

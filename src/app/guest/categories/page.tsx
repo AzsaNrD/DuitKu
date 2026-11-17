@@ -4,7 +4,10 @@ import {
   CategoriesClient,
   type CategoryGuestActions,
 } from "@/app/(app)/categories/categories-client";
+import { useMemo } from "react";
+import { currentMonth } from "@/lib/format";
 import {
+  computeCategoryTotals,
   createGuestCategory,
   deleteGuestCategory,
   updateGuestCategory,
@@ -19,5 +22,16 @@ const GUEST_ACTIONS: CategoryGuestActions = {
 
 export default function GuestCategoriesPage() {
   const data = useGuestData();
-  return <CategoriesClient categories={data.categories} guest={GUEST_ACTIONS} />;
+  const totals = useMemo(
+    () => computeCategoryTotals(data, currentMonth()),
+    [data]
+  );
+  return (
+    <CategoriesClient
+      categories={data.categories}
+      totals={totals}
+      noun="bulan"
+      guest={GUEST_ACTIONS}
+    />
+  );
 }

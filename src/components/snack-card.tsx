@@ -12,6 +12,7 @@ import {
   type SnackCategoryOption,
 } from "@/components/snack-settings";
 import { computeDailyAllowance, type SnackStatus } from "@/lib/snack";
+import type { SnackAllocationLink } from "@/lib/snack-allocation";
 import { formatIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -35,29 +36,83 @@ const STATUS_STYLE: Record<
   aman: {
     label: "Aman",
     Icon: CircleCheck,
-    chip: "bg-green-500/10 text-green-800 dark:text-green-300",
+    chip: "bg-income/10 text-income",
   },
   "hati-hati": {
     label: "Hampir habis",
     Icon: TriangleAlert,
-    chip: "bg-amber-500/10 text-amber-800 dark:text-amber-300",
+    chip: "bg-warning/10 text-warning",
   },
   lewat: {
     label: "Lewat jatah",
     Icon: TriangleAlert,
-    chip: "bg-red-500/10 text-red-700 dark:text-red-300",
+    chip: "bg-expense/10 text-expense",
   },
   habis: {
     label: "Batas habis",
     Icon: Ban,
-    chip: "bg-red-500/10 text-red-700 dark:text-red-300",
+    chip: "bg-expense/10 text-expense",
   },
 };
 
 function monthBarColor(ratio: number) {
-  if (ratio > 1) return "bg-red-600 dark:bg-red-500";
-  if (ratio >= 0.75) return "bg-amber-700 dark:bg-amber-500";
-  return "bg-green-700 dark:bg-green-500";
+  if (ratio > 1) return "bg-expense";
+  if (ratio >= 0.75) return "bg-warning";
+  return "bg-income";
+}
+
+// Catatan hubungan batas jajan dengan alokasi. Maknanya ada di ikon dan
+// kalimatnya, bukan hanya warna.
+function AllocationNote({
+  link,
+  noun,
+}: {
+  link: SnackAllocationLink;
+  noun: string;
+}) {
+  const allocationLink = (
+    <Link
+      href="/allocation"
+      className="font-medium text-foreground underline underline-offset-4"
+    >
+      Buka alokasi
+    </Link>
+  );
+
+  if (link.kind === "over") {
+    return (
+      <p className="flex items-start gap-1.5 rounded-lg bg-warning/10 px-3 py-2 text-warning">
+        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <span>
+          Batas jajan lebih besar{" "}
+          <span className="money font-semibold">{formatIDR(link.excess)}</span>{" "}
+          dari jatah pos {link.bucketNames.join(", ")} di alokasi (
+          <span className="money whitespace-nowrap">
+            {formatIDR(link.planned)}
+          </span>{" "}
+          {noun} ini).{" "}
+          {allocationLink}
+        </span>
+      </p>
+    );
+  }
+  if (link.kind === "no-income") {
+    return (
+      <p className="text-xs">
+        Pemasukan {noun} ini belum diisi di alokasi, jadi batas jajan belum bisa
+        dibandingkan dengan jatah pos. {allocationLink}
+      </p>
+    );
+  }
+  return (
+    <p className="text-xs">
+      Masih dalam jatah pos {link.bucketNames.join(", ")} di alokasi (
+      <span className="money whitespace-nowrap">
+        {formatIDR(link.planned)}
+      </span>{" "}
+      {noun} ini).
+    </p>
+  );
 }
 
 export function SnackCard({
@@ -65,15 +120,18 @@ export function SnackCard({
   today,
   categories,
   payday,
+  allocationLink = null,
 }: {
   overview: Overview;
   today: string;
   categories: SnackCategoryOption[];
   payday: number;
+  // hasil perbandingan batas jajan dengan jatah pos di alokasi
+  allocationLink?: SnackAllocationLink | null;
 }) {
   if (!overview) {
     return (
-      <Card className="lg:col-span-2">
+      <Card className="sm:col-span-2 lg:col-span-4">
         <CardHeader>
           <CardTitle className="text-base">Jatah Jajan Hari Ini</CardTitle>
         </CardHeader>
@@ -134,7 +192,7 @@ export function SnackCard({
   const hidden = counted.length - shownNames.length;
 
   return (
-    <Card className="lg:col-span-2">
+    <Card className="sm:col-span-2 lg:col-span-4">
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-base">Jatah Jajan Hari Ini</CardTitle>
         <SnackSettingsButton
@@ -223,6 +281,9 @@ export function SnackCard({
                   </span>
                   .
                 </p>
+              )}
+              {allocationLink && (
+                <AllocationNote link={allocationLink} noun={noun} />
               )}
               {counted.length > 0 && (
                 <p className="text-xs">

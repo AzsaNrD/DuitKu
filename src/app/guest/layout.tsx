@@ -1,8 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { ArrowLeftRight, LayoutDashboard, LogIn, Tags, Wallet } from "lucide-react";
+import {
+  NavPendingProvider,
+  NavProgressBar,
+  PendingContent,
+  useOptimisticPath,
+} from "@/components/nav-pending";
 import { BalanceToggle } from "@/components/balance-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -20,7 +25,7 @@ const GUEST_NAV_ITEMS = [
 ] as const;
 
 function GuestNav({ className }: { className?: string }) {
-  const pathname = usePathname();
+  const { current: pathname, onNavigate } = useOptimisticPath();
   return (
     <nav className={cn("flex flex-col gap-1.5", className)}>
       {GUEST_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -29,6 +34,7 @@ function GuestNav({ className }: { className?: string }) {
           <Link
             key={href}
             href={href}
+            onClick={onNavigate(href)}
             className={cn(
               "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all",
               active
@@ -46,7 +52,7 @@ function GuestNav({ className }: { className?: string }) {
 }
 
 function GuestBottomNav() {
-  const pathname = usePathname();
+  const { current: pathname, onNavigate } = useOptimisticPath();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background md:hidden">
       <div className="grid grid-cols-4">
@@ -56,8 +62,9 @@ function GuestBottomNav() {
             <Link
               key={href}
               href={href}
+              onClick={onNavigate(href)}
               className={cn(
-                "flex flex-col items-center gap-0.5 py-2 text-[10px]",
+                "flex flex-col items-center gap-0.5 py-2 text-[11px]",
                 active ? "text-primary" : "text-muted-foreground"
               )}
             >
@@ -73,6 +80,8 @@ function GuestBottomNav() {
 
 export default function GuestLayout({ children }: { children: React.ReactNode }) {
   return (
+    <NavPendingProvider>
+    <NavProgressBar />
     <div className="flex min-h-screen w-full">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-background p-5 md:flex">
         <Link
@@ -100,7 +109,7 @@ export default function GuestLayout({ children }: { children: React.ReactNode })
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b bg-background/80 px-4 backdrop-blur md:px-6">
           <Link
             href="/guest/dashboard"
-            className="flex items-center gap-2 font-bold md:hidden"
+            className="flex items-center gap-2 py-2 font-bold md:hidden"
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Wallet className="h-4 w-4" />
@@ -110,7 +119,7 @@ export default function GuestLayout({ children }: { children: React.ReactNode })
           <span className="hidden rounded-full border border-dashed px-3 py-1 text-xs font-medium text-muted-foreground md:inline-block">
             Mode tanpa akun
           </span>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1 pointer-coarse:gap-2">
             <BalanceToggle />
             <ThemeToggle />
             <Button size="sm" nativeButton={false} render={<Link href="/register" />}>
@@ -120,11 +129,12 @@ export default function GuestLayout({ children }: { children: React.ReactNode })
         </header>
 
         <main className="mx-auto w-full max-w-6xl flex-1 p-4 pb-24 md:p-8 md:pb-10">
-          {children}
+          <PendingContent>{children}</PendingContent>
         </main>
       </div>
 
       <GuestBottomNav />
     </div>
+    </NavPendingProvider>
   );
 }

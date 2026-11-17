@@ -134,7 +134,7 @@ export function GoalsClient({
                 key={goal.id}
                 className={cn(
                   "transition-all hover:-translate-y-0.5 hover:shadow-md",
-                  done && "border-green-500"
+                  done && "border-income"
                 )}
               >
                 <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
@@ -162,6 +162,7 @@ export function GoalsClient({
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`Edit impian ${goal.name}`}
                       onClick={() => {
                         setEditing(goal);
                         setFormOpen(true);
@@ -172,6 +173,7 @@ export function GoalsClient({
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`Hapus impian ${goal.name}`}
                       onClick={() => setDeleting(goal)}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
@@ -193,7 +195,7 @@ export function GoalsClient({
                         className="h-full rounded-full transition-all"
                         style={{
                           width: `${Math.min(100, pct)}%`,
-                          backgroundColor: done ? "#22c55e" : goal.color,
+                          backgroundColor: done ? "var(--income)" : goal.color,
                         }}
                       />
                     </div>
@@ -211,7 +213,7 @@ export function GoalsClient({
                     </p>
                   )}
                   {done ? (
-                    <Badge className="bg-green-600 text-white">
+                    <Badge className="bg-income text-background">
                       🎉 Tercapai! Saatnya beli
                     </Badge>
                   ) : (

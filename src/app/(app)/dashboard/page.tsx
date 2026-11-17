@@ -6,42 +6,42 @@ import {
   ArrowUpRight,
   Percent,
   PiggyBank,
+  Plus,
   Sparkles,
   Wallet as WalletIcon,
 } from "lucide-react";
-import { auth } from "@/auth";
-import { requireUserId } from "@/lib/require-user";
-import { processDueRecurring } from "@/lib/recurring";
+import { getSession, requireUserId } from "@/lib/require-user";
+import { loadWithDueRecurring } from "@/lib/recurring";
+import { compareSnackWithAllocation } from "@/lib/snack-allocation";
 import {
   getAllocationOverview,
+  getAllocationPlan,
   getExpenseByCategory,
   getGoalsWithProgress,
   getMonthSummary,
   getPayday,
   getSnackOverview,
+  getSnackPlan,
   getTransactionsPage,
   getUserCategories,
   getWalletsWithBalances,
 } from "@/db/queries";
-import {
-  currentHour,
-  currentMonth,
-  formatIDR,
-  formatMonth,
-  todayString,
-} from "@/lib/format";
+import { currentHour, formatIDR, todayString } from "@/lib/format";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { TiltCard } from "@/components/tilt-card";
+import { HeroWalletBreakdown } from "@/components/hero-wallet-breakdown";
+import { AnimatedMoney } from "@/components/animated-money";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
 import { SnackCard } from "@/components/snack-card";
-import { periodKeyOf, periodLabel, periodNoun } from "@/lib/period";
+import { periodKeyOf, periodLabel, periodNoun, periodRange } from "@/lib/period";
 import { WalletSummaryList } from "@/components/wallet-summary-list";
 import {
   AllocationBucketRow,
@@ -62,17 +62,16 @@ function greeting() {
 
 export default async function DashboardPage() {
   const userId = await requireUserId();
-  const session = await auth();
-  // catat transaksi berulang yang sudah jatuh tempo sebelum menampilkan data
-  await processDueRecurring(userId);
-  const month = currentMonth();
+  const session = await getSession();
   const today = todayString();
 
   // Alokasi dan Jatah Jajan mengikuti periode gajian; ringkasan di atasnya
   // tetap bulan kalender. Tanggal gajian diambil bersamaan dengan query lain
   // dan hanya dua query itu yang menunggunya.
-  const paydayPromise = getPayday(userId);
-
+  // Semua ringkasan (pemasukan, pengeluaran, pie, alokasi, jajan) memakai
+  // periode yang sama: bulan kalender, atau rentang gajian kalau tanggal
+  // gajian bukan 1. Jadwal berulang yang jatuh tempo dicatat bersamaan dengan pengambilan data
+  // (lihat loadWithDueRecurring), bukan menunggunya dulu.
   const [
     wallets,
     summary,
@@ -83,24 +82,46 @@ export default async function DashboardPage() {
     allocation,
     snack,
     payday,
-  ] = await Promise.all([
-    getWalletsWithBalances(userId),
-    getMonthSummary(userId, month),
-    getExpenseByCategory(userId, month),
-    getTransactionsPage(userId, { pageSize: 8 }),
-    getUserCategories(userId),
-    getGoalsWithProgress(userId),
-    paydayPromise.then((pd) =>
-      getAllocationOverview(userId, periodKeyOf(today, pd), undefined, pd)
-    ),
-    paydayPromise.then((pd) => getSnackOverview(userId, today, pd)),
-    paydayPromise,
-  ]);
+  ] = await loadWithDueRecurring(userId, () => {
+    // payday, rencana alokasi, dan rencana jajan tidak saling bergantung,
+    // jadi diambil bersamaan; baru ringkasan keduanya menunggu payday
+    const paydayPromise = getPayday(userId);
+    const allocationPlanPromise = getAllocationPlan(userId);
+    const snackPlanPromise = getSnackPlan(userId);
+    return Promise.all([
+      getWalletsWithBalances(userId),
+      paydayPromise.then((pd) =>
+        getMonthSummary(userId, periodRange(periodKeyOf(today, pd), pd))
+      ),
+      paydayPromise.then((pd) =>
+        getExpenseByCategory(userId, periodRange(periodKeyOf(today, pd), pd))
+      ),
+      getTransactionsPage(userId, { pageSize: 6 }),
+      getUserCategories(userId),
+      getGoalsWithProgress(userId),
+      Promise.all([paydayPromise, allocationPlanPromise]).then(([pd, plan]) =>
+        getAllocationOverview(userId, periodKeyOf(today, pd), plan, pd)
+      ),
+      Promise.all([paydayPromise, snackPlanPromise]).then(([pd, plan]) =>
+        getSnackOverview(userId, today, pd, plan)
+      ),
+      paydayPromise,
+    ]);
+  });
   const periodText = periodLabel(periodKeyOf(today, payday), payday);
   const periodWord = periodNoun(payday);
   const snackCategoryOptions = categories
     .filter((c) => c.type === "expense")
     .map((c) => ({ id: c.id, name: c.name, color: c.color, icon: c.icon }));
+
+  const snackAllocationLink = snack
+    ? compareSnackWithAllocation({
+        snackLimit: snack.plan.limit,
+        snackCategoryIds: snack.plan.categoryIds,
+        buckets: allocation.buckets,
+        incomeUsed: allocation.income.used,
+      })
+    : null;
 
   const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0);
   // pengganti peringatan kartu Budget lama: kategori yang melewati batasnya
@@ -119,20 +140,23 @@ export default async function DashboardPage() {
             {firstName ? `, ${firstName}` : ""} 👋
           </h1>
           <p className="text-sm text-muted-foreground md:text-base">
-            Ini ringkasan keuanganmu bulan {formatMonth(month)}
+            Ini ringkasan keuanganmu {periodWord} {periodText}
           </p>
         </div>
         <QuickAddButton wallets={wallets} categories={categories} />
       </div>
 
-      {/* Kartu ringkasan */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+      {/* Grid bento: 1 kolom di HP, 2 di tablet, 4 di desktop.
+          Hero 2x2 di kiri, pemasukan/pengeluaran/selisih di kanannya,
+          lalu kartu lebar bergantian setengah dan penuh. */}
+      <div className="bento-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
         {/* Hero: total saldo */}
         <TiltCard
           glare
-          className="sm:col-span-2 lg:col-span-1 motion-safe:animate-swing-in"
+          glareClassName="rounded-2xl"
+          className="sm:col-span-2 lg:row-span-2 motion-safe:animate-swing-in"
         >
-          <Card className="relative h-full overflow-hidden border-0 bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 text-white">
+          <Card className="relative h-full overflow-hidden border-0 bg-brand-gradient text-white">
             <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10" />
             <div className="pointer-events-none absolute -bottom-10 -left-4 h-24 w-24 rounded-full bg-white/10" />
             <CardHeader className="pb-2">
@@ -140,13 +164,18 @@ export default async function DashboardPage() {
                 <WalletIcon className="h-4 w-4" /> Total Saldo
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="money text-2xl font-bold tracking-tight md:text-[1.7rem]">
-                {formatIDR(totalBalance)}
-              </p>
-              <p className="mt-1 text-xs text-white/75">
-                dari {wallets.length} dompet
-              </p>
+            <CardContent className="flex flex-1 flex-col gap-6">
+              <div>
+                <p className="money text-4xl font-bold tracking-tight md:text-5xl">
+                  <AnimatedMoney value={totalBalance} />
+                </p>
+                <p className="mt-1.5 text-sm text-white/75">
+                  dari {wallets.length} dompet
+                </p>
+              </div>
+              <div className="mt-auto">
+                <HeroWalletBreakdown wallets={wallets} addHref="/wallets" />
+              </div>
             </CardContent>
           </Card>
         </TiltCard>
@@ -154,15 +183,15 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10">
-                <ArrowDownLeft className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <span className="stat-chip flex h-8 w-8 items-center justify-center rounded-lg bg-income/10">
+                <ArrowDownLeft className="h-4 w-4 text-income" />
               </span>
               Pemasukan
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="money text-2xl font-bold tracking-tight text-green-600 dark:text-green-400">
-              {formatIDR(summary.income)}
+            <p className="money text-2xl font-bold tracking-tight text-income">
+              <AnimatedMoney value={summary.income} />
             </p>
           </CardContent>
         </Card>
@@ -170,23 +199,23 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
-                <ArrowUpRight className="h-4 w-4 text-red-600 dark:text-red-400" />
+              <span className="stat-chip flex h-8 w-8 items-center justify-center rounded-lg bg-expense/10">
+                <ArrowUpRight className="h-4 w-4 text-expense" />
               </span>
               Pengeluaran
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="money text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
-              {formatIDR(summary.expense)}
+            <p className="money text-2xl font-bold tracking-tight text-expense">
+              <AnimatedMoney value={summary.expense} />
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="sm:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+              <span className="stat-chip flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                 <PiggyBank className="h-4 w-4 text-primary" />
               </span>
               Selisih
@@ -194,26 +223,25 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p
-              className={`money text-2xl font-bold tracking-tight ${net >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+              className={`money text-2xl font-bold tracking-tight ${net >= 0 ? "text-income" : "text-expense"}`}
             >
               {net >= 0 ? "+" : ""}
-              {formatIDR(net)}
+              <AnimatedMoney value={net} />
             </p>
           </CardContent>
         </Card>
-      </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
         {/* Keputusan harian: berapa yang masih aman untuk jajan hari ini */}
         <SnackCard
           overview={snack}
           today={today}
           categories={snackCategoryOptions}
           payday={payday}
+          allocationLink={snackAllocationLink}
         />
 
         {/* Alokasi pendapatan periode berjalan */}
-        <Card className="lg:col-span-2">
+        <Card className="sm:col-span-2 lg:col-span-4">
           <CardHeader className="flex flex-row items-start justify-between gap-2">
             <div className="space-y-0.5">
               <CardTitle className="text-base">
@@ -255,8 +283,8 @@ export default async function DashboardPage() {
                   ))}
                 </div>
                 {overLimit.length > 0 && (
-                  <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
-                    Melewati batas bulan ini:{" "}
+                  <p className="rounded-lg bg-expense/10 px-3 py-2 text-sm text-expense">
+                    Melewati batas {periodWord} ini:{" "}
                     {overLimit
                       .map((c) => `${c.name} (lebih ${formatIDR(c.spent - (c.limit ?? 0))})`)
                       .join(", ")}
@@ -280,14 +308,14 @@ export default async function DashboardPage() {
         </Card>
 
         {/* Saldo per dompet */}
-        <Card>
+        <Card className="sm:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Dompet</CardTitle>
             <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/wallets" />}>
               Kelola
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             {wallets.length === 0 ? (
               <EmptyState
                 compact
@@ -301,39 +329,48 @@ export default async function DashboardPage() {
                 }
               />
             ) : (
-              <WalletSummaryList wallets={wallets} />
+              <div className="flex h-full flex-col gap-4">
+                <WalletSummaryList wallets={wallets} />
+                <Link
+                  href="/wallets"
+                  className="mt-auto flex items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" /> Tambah dompet
+                </Link>
+              </div>
             )}
           </CardContent>
         </Card>
 
         {/* Pie chart pengeluaran */}
-        <Card>
+        <Card className="sm:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">
               Pengeluaran per Kategori
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ExpensePieChart
-              data={expenseByCategory.map((c) => ({
-                name: c.name,
-                color: c.color,
-                total: c.total,
-              }))}
-            />
+          <CardContent className="flex flex-1 items-center">
+            <div className="w-full">
+              <ExpensePieChart
+                data={expenseByCategory.map((c) => ({
+                  name: c.name,
+                  color: c.color,
+                  total: c.total,
+                }))}
+              />
+            </div>
           </CardContent>
         </Card>
 
-        {/* Impian: lebar penuh sejak kartu Budget dihapus, supaya grid
-            dua kolom di atasnya tetap berpasangan */}
-        <Card className="lg:col-span-2">
+        {/* Impian: berpasangan dengan Transaksi Terbaru */}
+        <Card className="sm:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Impian</CardTitle>
             <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/goals" />}>
               Kelola
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             {goals.length === 0 ? (
               <EmptyState
                 compact
@@ -347,41 +384,70 @@ export default async function DashboardPage() {
                 }
               />
             ) : (
-              <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+              <div className="flex h-full flex-col gap-3">
                 {goals.slice(0, 4).map((goal) => {
                   const target = Number(goal.targetAmount);
                   const saved = goal.saved;
                   const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
                   const done = saved >= target;
                   return (
-                    <div key={goal.id}>
-                      <div className="mb-1.5 flex items-center justify-between text-sm">
-                        <span className="font-medium">
-                          {goal.name} {done && "🎉"}
+                    <div key={goal.id} className="rounded-xl bg-muted/50 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="min-w-0 break-words font-medium">
+                          {goal.name}
                         </span>
-                        <span className="money text-xs text-muted-foreground">
-                          {formatIDR(saved)} / {formatIDR(target)}
+                        <span
+                          className={cn(
+                            "money shrink-0 text-lg font-bold",
+                            done && "text-income"
+                          )}
+                        >
+                          {Math.round(pct)}%
                         </span>
                       </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        role="progressbar"
+                        aria-label={`Progres impian ${goal.name}`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(pct)}
+                        className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-muted"
+                      >
                         <div
                           className="h-full rounded-full transition-all"
                           style={{
                             width: `${pct}%`,
-                            backgroundColor: done ? "#22c55e" : goal.color,
+                            backgroundColor: done ? "var(--income)" : goal.color,
                           }}
                         />
                       </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        <span className="money font-medium text-foreground">
+                          {formatIDR(saved)}
+                        </span>{" "}
+                        dari <span className="money">{formatIDR(target)}</span>
+                        {done
+                          ? ", tercapai 🎉"
+                          : `, sisa ${formatIDR(target - saved)}`}
+                      </p>
                     </div>
                   );
                 })}
+                {goals.length < 4 && (
+                  <Link
+                    href="/goals"
+                    className="mt-auto flex items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" /> Tambah impian
+                  </Link>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Transaksi terbaru */}
-        <Card className="lg:col-span-2">
+        {/* Transaksi terbaru: berpasangan dengan Impian di sebelahnya */}
+        <Card className="sm:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Transaksi Terbaru</CardTitle>
             <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/transactions" />}>

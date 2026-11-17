@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { actionToast, type ActionResult } from "@/lib/action-toast";
-import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
+import { EllipsisVertical, Pencil, Plus, Tags, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,6 +34,7 @@ import {
 } from "@/actions/categories";
 import { categorySchema, type CategoryInput } from "@/lib/zod-schemas";
 import type { Category, CategoryType } from "@/db/schema";
+import { formatIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // override untuk mode tanpa akun (localStorage) — defaultnya action server
@@ -40,11 +47,17 @@ export type CategoryGuestActions = {
 
 export function CategoriesClient({
   categories,
+  totals = {},
+  noun = "bulan",
   guest,
 }: {
   categories: Category[];
+  // total tiap kategori di periode berjalan, kunci = id kategori
+  totals?: Record<string, number>;
+  noun?: "bulan" | "periode";
   guest?: CategoryGuestActions;
 }) {
+  const [tab, setTab] = useState<CategoryType>("expense");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState<Category | null>(null);
@@ -86,7 +99,7 @@ export function CategoriesClient({
         </div>
       </div>
 
-      <Tabs defaultValue="expense">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as CategoryType)}>
         <div className="flex items-center justify-between gap-2">
           <TabsList>
             <TabsTrigger value="expense">
@@ -96,23 +109,24 @@ export function CategoriesClient({
               Pemasukan ({incomeCategories.length})
             </TabsTrigger>
           </TabsList>
-        </div>
-        <TabsContent value="expense" className="mt-4 space-y-4">
-          <Button onClick={() => openCreate("expense")}>
-            <Plus /> Tambah Kategori Pengeluaran
+          <Button onClick={() => openCreate(tab)}>
+            <Plus /> Tambah
           </Button>
+        </div>
+        <TabsContent value="expense" className="mt-4">
           <CategoryList
             items={expenseCategories}
+            totals={totals}
+            noun={noun}
             onEdit={openEdit}
             onDelete={setDeleting}
           />
         </TabsContent>
-        <TabsContent value="income" className="mt-4 space-y-4">
-          <Button onClick={() => openCreate("income")}>
-            <Plus /> Tambah Kategori Pemasukan
-          </Button>
+        <TabsContent value="income" className="mt-4">
           <CategoryList
             items={incomeCategories}
+            totals={totals}
+            noun={noun}
             onEdit={openEdit}
             onDelete={setDeleting}
           />
@@ -155,10 +169,14 @@ export function CategoriesClient({
 
 function CategoryList({
   items,
+  totals,
+  noun,
   onEdit,
   onDelete,
 }: {
   items: Category[];
+  totals: Record<string, number>;
+  noun: string;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
 }) {
@@ -177,41 +195,69 @@ function CategoryList({
     );
   }
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
-      {items.map((category) => (
-        <Card
-          key={category.id}
-          className="transition-all hover:-translate-y-0.5 hover:shadow-md"
-        >
-          <CardContent className="flex items-center justify-between py-3">
-            <div className="flex items-center gap-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map((category) => {
+        const total = totals[category.id] ?? 0;
+        return (
+          <Card
+            key={category.id}
+            className="flex-row items-center gap-0 py-0 transition-all hover:-translate-y-0.5 hover:shadow-md"
+          >
+            {/* seluruh kartu membuka form edit; menu aksi ada di sampingnya,
+                bukan di dalam tombol ini, supaya tidak ada kontrol bersarang */}
+            <button
+              type="button"
+              onClick={() => onEdit(category)}
+              className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              aria-label={`Edit kategori ${category.name}`}
+            >
               <span
-                className="flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
                 style={{ backgroundColor: category.color }}
               >
                 <CategoryIcon icon={category.icon} className="h-4 w-4" />
               </span>
-              <span className="font-medium">{category.name}</span>
-            </div>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onEdit(category)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(category)}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{category.name}</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {total > 0 ? (
+                    <>
+                      <span className="money">{formatIDR(total)}</span> {noun} ini
+                    </>
+                  ) : (
+                    `Belum dipakai ${noun} ini`
+                  )}
+                </span>
+              </span>
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="mr-1.5 shrink-0"
+                    aria-label={`Aksi untuk ${category.name}`}
+                  >
+                    <EllipsisVertical className="h-4 w-4" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(category)}>
+                  <Pencil /> Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => onDelete(category)}
+                >
+                  <Trash2 /> Hapus
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Card>
+        );
+      })}
     </div>
   );
 }

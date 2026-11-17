@@ -500,6 +500,21 @@ export function computeExpenseByCategory(data: GuestData, month: string) {
     .sort((a, b) => b.total - a.total);
 }
 
+// Total per kategori (pemasukan dan pengeluaran) di satu bulan, untuk
+// halaman Kategori. Kunci = id kategori.
+export function computeCategoryTotals(
+  data: GuestData,
+  month: string
+): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const t of data.transactions) {
+    if (!t.categoryId || t.date.slice(0, 7) !== month) continue;
+    if (t.type !== "expense" && t.type !== "income") continue;
+    totals[t.categoryId] = (totals[t.categoryId] ?? 0) + Number(t.amount);
+  }
+  return totals;
+}
+
 // ---------- Export ----------
 
 export function exportGuestDataJson(): string {

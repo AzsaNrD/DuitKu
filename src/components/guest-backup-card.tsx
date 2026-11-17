@@ -17,6 +17,7 @@ import {
   downloadGuestDataJson,
   readGuestBackup,
   restoreGuestBackup,
+  useHasGuestData,
   type GuestData,
 } from "@/lib/guest-store";
 
@@ -25,6 +26,8 @@ import {
 export function GuestBackupCard() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<GuestData | null>(null);
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
+  const hasData = useHasGuestData();
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -57,7 +60,10 @@ export function GuestBackupCard() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => downloadGuestDataJson()}>
+          <Button
+            variant="outline"
+            onClick={() => (hasData ? downloadGuestDataJson() : setConfirmEmpty(true))}
+          >
             <Download /> Unduh Cadangan
           </Button>
           <Button variant="outline" onClick={() => fileRef.current?.click()}>
@@ -74,6 +80,31 @@ export function GuestBackupCard() {
           />
         </div>
       </CardContent>
+
+      <Dialog open={confirmEmpty} onOpenChange={setConfirmEmpty}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Belum ada data untuk dicadangkan</DialogTitle>
+            <DialogDescription>
+              Kamu belum punya dompet atau transaksi, jadi cadangan hanya
+              berisi kategori bawaan. Tetap lanjut mengunduh?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmEmpty(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmEmpty(false);
+                downloadGuestDataJson();
+              }}
+            >
+              Tetap Unduh
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
         <DialogContent>

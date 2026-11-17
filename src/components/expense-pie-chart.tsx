@@ -11,7 +11,27 @@ export type CategoryTotal = {
   total: number;
 };
 
-export function ExpensePieChart({ data }: { data: CategoryTotal[] }) {
+// Legenda dibatasi supaya tinggi kartu tidak ikut membengkak: 5 kategori
+// terbesar ditampilkan sendiri, sisanya digabung jadi satu irisan "Lainnya".
+const MAX_SLICES = 6;
+
+function limitSlices(data: CategoryTotal[]): CategoryTotal[] {
+  if (data.length <= MAX_SLICES) return data;
+  const sorted = [...data].sort((a, b) => b.total - a.total);
+  const top = sorted.slice(0, MAX_SLICES - 1);
+  const rest = sorted.slice(MAX_SLICES - 1);
+  return [
+    ...top,
+    {
+      name: `${rest.length} kategori lain`,
+      color: "#737373",
+      total: rest.reduce((sum, c) => sum + c.total, 0),
+    },
+  ];
+}
+
+export function ExpensePieChart({ data: rawData }: { data: CategoryTotal[] }) {
+  const data = limitSlices(rawData);
   if (data.length === 0) {
     return (
       <EmptyState

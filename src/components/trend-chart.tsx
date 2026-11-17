@@ -29,7 +29,13 @@ const MONTH_SHORT = [
   "Des",
 ];
 
-export type TrendPoint = { month: string; income: number; expense: number };
+// `label` opsional menggantikan nama bulan di sumbu (mis. "21 Okt" untuk periode gajian)
+export type TrendPoint = {
+  month: string;
+  income: number;
+  expense: number;
+  label?: string;
+};
 
 function shortMonth(month: string) {
   const [y, m] = month.split("-");
@@ -59,7 +65,7 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart
-        data={data.map((d) => ({ ...d, label: shortMonth(d.month) }))}
+        data={data.map((d) => ({ ...d, label: d.label ?? shortMonth(d.month) }))}
         margin={{ top: 8, right: 8, left: 8, bottom: 0 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -96,8 +102,8 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
             </span>
           )}
         />
-        <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="income" fill="var(--income)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="expense" fill="var(--expense)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

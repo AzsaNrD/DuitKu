@@ -108,7 +108,7 @@ export function ConnectionStatus() {
               aria-hidden
               className="flex items-start gap-3 rounded-2xl bg-foreground p-3.5 text-background shadow-lg [grid-area:1/1] [backface-visibility:hidden]"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-amber-950">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning text-background">
                 <WifiOff className="h-4.5 w-4.5" />
               </span>
               <div className="min-w-0 space-y-0.5 pt-0.5">
@@ -120,7 +120,7 @@ export function ConnectionStatus() {
               aria-hidden
               className="flex items-center gap-3 rounded-2xl border bg-background p-3.5 text-foreground shadow-lg [grid-area:1/1] [backface-visibility:hidden] [transform:rotateY(180deg)]"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-green-500 text-white">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-income text-background">
                 <Check className="h-4.5 w-4.5" />
               </span>
               <p className="text-sm font-semibold">Kembali online</p>

@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { Wallet } from "lucide-react";
-import { auth } from "@/auth";
+import { getSession } from "@/lib/require-user";
 import { SessionProvider } from "next-auth/react";
 import { SidebarNav, BottomNav } from "@/components/nav-links";
+import {
+  NavPendingProvider,
+  NavProgressBar,
+  PendingContent,
+} from "@/components/nav-pending";
 import { BalanceToggle } from "@/components/balance-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
@@ -13,10 +18,12 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  const session = await getSession();
 
   return (
     <SessionProvider>
+      <NavPendingProvider>
+      <NavProgressBar />
       <div className="flex min-h-screen w-full">
         {/* Sidebar (desktop) */}
         <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-background p-5 md:flex">
@@ -39,14 +46,14 @@ export default async function AppLayout({
           <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b bg-background/80 px-4 backdrop-blur md:px-6">
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 font-bold md:hidden"
+              className="flex items-center gap-2 py-2 font-bold md:hidden"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Wallet className="h-4 w-4" />
               </span>
               DuitKu
             </Link>
-            <div className="ml-auto flex items-center gap-1">
+            <div className="ml-auto flex items-center gap-1 pointer-coarse:gap-2">
               <BalanceToggle />
               <ThemeToggle />
               <UserMenu
@@ -58,12 +65,13 @@ export default async function AppLayout({
           </header>
 
           <main className="mx-auto w-full max-w-6xl flex-1 p-4 pb-24 md:p-8 md:pb-10">
-            {children}
+            <PendingContent>{children}</PendingContent>
           </main>
         </div>
 
         <BottomNav />
       </div>
+      </NavPendingProvider>
       <GuestMigrationCheck />
     </SessionProvider>
   );

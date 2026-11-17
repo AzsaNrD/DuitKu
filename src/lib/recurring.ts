@@ -77,3 +77,18 @@ export async function processDueRecurring(userId: string) {
 
   return due.length;
 }
+
+// Ambil data halaman sambil mengecek jadwal berulang yang jatuh tempo, tidak
+// berurutan. Hampir selalu tidak ada yang jatuh tempo, jadi data yang sudah
+// diambil langsung dipakai. Hanya bila ada transaksi baru yang dibuat, data
+// diambil ulang supaya transaksi itu ikut tampil.
+export async function loadWithDueRecurring<T>(
+  userId: string,
+  load: () => Promise<T>
+): Promise<T> {
+  const [created, data] = await Promise.all([
+    processDueRecurring(userId),
+    load(),
+  ]);
+  return created > 0 ? load() : data;
+}

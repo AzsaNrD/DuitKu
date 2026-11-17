@@ -31,15 +31,15 @@ export function AllocationSplitBar({
 // Pengeluaran (pos maupun batas per kategori): hijau < 75%, kuning 75-100%,
 // merah > 100%.
 export function spendingBarColor(pct: number) {
-  if (pct > 100) return "bg-red-500";
-  if (pct >= 75) return "bg-yellow-500";
-  return "bg-green-500";
+  if (pct > 100) return "bg-expense";
+  if (pct >= 75) return "bg-warning";
+  return "bg-income";
 }
 
 // Pos tabungan kebalikannya: mencapai target itu bagus (hijau), belum
 // tercapai netral.
 function barColor(kind: AllocationBucketProgress["kind"], pct: number) {
-  if (kind === "savings") return pct >= 100 ? "bg-green-500" : "bg-primary";
+  if (kind === "savings") return pct >= 100 ? "bg-income" : "bg-primary";
   return spendingBarColor(pct);
 }
 
@@ -92,8 +92,8 @@ export function AllocationBucketRow({
         <span
           className={cn(
             "shrink-0 text-xs font-medium",
-            status.tone === "bad" && "text-red-600 dark:text-red-400",
-            status.tone === "good" && "text-green-600 dark:text-green-400",
+            status.tone === "bad" && "text-expense",
+            status.tone === "good" && "text-income",
             status.tone === "muted" && "text-muted-foreground"
           )}
         >

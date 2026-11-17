@@ -28,7 +28,7 @@ const FAQ_ITEMS = [
   {
     question: "Saldo di aplikasi beda dengan uang asli di dompet, gimana benerinnya?",
     answer:
-      'Pakai fitur "Sesuaikan Saldo" di halaman Dompet: masukkan saldo yang sebenarnya, selisihnya otomatis dicatat sebagai satu transaksi penyesuaian (bukan menimpa riwayat lama), lengkap dengan kolom alasan supaya tetap bisa ditelusuri.',
+      'Pakai fitur "Sesuaikan Saldo" di halaman Dompet, lalu masukkan saldo yang sebenarnya, selisihnya otomatis dicatat sebagai satu transaksi penyesuaian (bukan menimpa riwayat lama), lengkap dengan kolom alasan supaya tetap bisa ditelusuri.',
   },
   {
     question: "Data transaksi saya bisa dipindahkan ke Excel?",

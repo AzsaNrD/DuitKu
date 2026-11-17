@@ -17,9 +17,10 @@ import { Button } from "@/components/ui/button";
 import { LandingNav } from "@/components/landing-nav";
 import { LandingFaq } from "@/components/landing-faq";
 import { TiltCard } from "@/components/tilt-card";
+import { Reveal } from "@/components/reveal";
 
 export const metadata: Metadata = {
-  title: "DuitKu: Catat Keuangan, Gratis & Bisa Dicoba Tanpa Akun",
+  title: "DuitKu | Catat Keuangan, Gratis & Bisa Dicoba Tanpa Akun",
 };
 
 const FEATURES = [
@@ -28,35 +29,35 @@ const FEATURES = [
     title: "Multi-Dompet, Saldo Otomatis",
     description:
       "Cash, rekening bank, e-wallet, semua kelihatan di satu tempat. Saldo dihitung otomatis dari transaksi, bukan diketik manual.",
-    color: "#6366f1",
+    color: "var(--chart-1)",
   },
   {
     icon: Tags,
     title: "Kategori Custom",
     description:
       "12 kategori bawaan siap pakai, atau bikin sendiri lengkap dengan ikon dan warna favoritmu.",
-    color: "#ec4899",
+    color: "var(--chart-5)",
   },
   {
     icon: Percent,
     title: "Alokasi Gaji & Batas Kategori",
     description:
       "Bagi pemasukan pakai 50/30/20 atau racikanmu sendiri, lalu lihat rencana vs realisasinya. Bisa pasang batas per kategori yang berubah hijau, kuning, lalu merah.",
-    color: "#22c55e",
+    color: "var(--chart-2)",
   },
   {
     icon: ChartPie,
     title: "Laporan & Grafik Bulanan",
     description:
       "Bandingkan pengeluaran antar bulan, lihat komposisi per kategori, dan pantau saving rate-mu.",
-    color: "#0ea5e9",
+    color: "var(--chart-4)",
   },
   {
     icon: Scale,
     title: "Sesuaikan Saldo Sekali Klik",
     description:
       'Saldo di aplikasi beda dengan dompet asli? Masukkan saldo sebenarnya, selisihnya otomatis tercatat rapi sebagai "penyesuaian", bukan menimpa riwayat lama.',
-    color: "#f59e0b",
+    color: "var(--chart-3)",
   },
 ] as const;
 
@@ -69,7 +70,7 @@ const STEPS = [
   {
     title: "Tambahkan dompetmu",
     description:
-      "Cash di dompet, rekening BCA, saldo GoPay: masukkan satu per satu beserta saldo awalnya.",
+      "Cash di dompet, rekening BCA, saldo GoPay, masukkan satu per satu beserta saldo awalnya.",
   },
   {
     title: "Catat tiap transaksi",
@@ -131,8 +132,8 @@ export default async function LandingPage() {
               max={10}
               className="relative motion-safe:animate-swing-in [animation-delay:150ms]"
             >
-              <div className="relative rounded-2xl border bg-card p-4 shadow-xl [transform-style:preserve-3d] sm:p-5">
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 p-4 text-white shadow-lg [transform:translateZ(40px)]">
+              <div className="relative rounded-3xl bg-card p-4 shadow-bento-hover ring-1 ring-border [transform-style:preserve-3d] sm:p-5">
+                <div className="relative overflow-hidden rounded-2xl bg-brand-gradient p-4 text-white shadow-lg [transform:translateZ(40px)]">
                   <div className="pointer-events-none absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10" />
                   <div className="pointer-events-none absolute -bottom-8 -left-3 h-20 w-20 rounded-full bg-white/10" />
                   <p className="flex items-center gap-1.5 text-xs text-white/80">
@@ -145,9 +146,9 @@ export default async function LandingPage() {
                 </div>
                 <div className="mt-4 space-y-2.5 [transform:translateZ(16px)]">
                   {[
-                    { name: "Cash", color: "#22c55e", amount: "Rp 350.000" },
+                    { name: "Cash", color: "var(--chart-2)", amount: "Rp 350.000" },
                     { name: "BCA", color: "#3b82f6", amount: "Rp 2.900.000" },
-                    { name: "GoPay", color: "#0ea5e9", amount: "Rp 1.000.000" },
+                    { name: "GoPay", color: "var(--chart-4)", amount: "Rp 1.000.000" },
                   ].map((w) => (
                     <div key={w.name} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2.5">
@@ -162,14 +163,14 @@ export default async function LandingPage() {
                   ))}
                 </div>
               </div>
-              <div className="absolute -bottom-5 -left-4 hidden rotate-[-4deg] rounded-xl border bg-card px-3.5 py-2.5 shadow-lg [transform:translateZ(70px)] sm:block">
+              <div className="absolute -bottom-5 -left-4 hidden rotate-[-4deg] rounded-2xl bg-card px-3.5 py-2.5 shadow-bento-hover ring-1 ring-border [transform:translateZ(70px)] sm:block">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-500/10">
-                    <ArrowDownLeft className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-income/10">
+                    <ArrowDownLeft className="h-3.5 w-3.5 text-income" />
                   </span>
                   <div>
                     <p className="font-medium">Gaji Bulanan</p>
-                    <p className="text-xs text-green-600 dark:text-green-400">+Rp 5.000.000</p>
+                    <p className="text-xs text-income">+Rp 5.000.000</p>
                   </div>
                 </div>
               </div>
@@ -180,7 +181,7 @@ export default async function LandingPage() {
         {/* Fitur */}
         <section id="fitur" className="border-t bg-muted/30 py-20">
           <div className="mx-auto max-w-6xl px-4 md:px-6">
-            <div className="mx-auto max-w-2xl text-center">
+            <Reveal className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 Semua yang kamu butuh, tanpa yang tidak perlu
               </h2>
@@ -188,14 +189,15 @@ export default async function LandingPage() {
                 Fitur intinya cuma ini, dan semuanya beneran dipakai, bukan
                 sekadar pemanis.
               </p>
-            </div>
+            </Reveal>
 
             <div className="mt-12 grid gap-4 lg:grid-cols-3">
               {/* Kartu besar: pembeda utama DuitKu, sengaja disorot lebih
                   besar dari fitur lain (lihat R-14/R-31) */}
-              <div className="relative overflow-hidden rounded-2xl border bg-card p-6 lg:col-span-2 lg:row-span-2">
-                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-indigo-500/10" />
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+              <Reveal className="lg:col-span-2 lg:row-span-2">
+              <div className="relative h-full overflow-hidden rounded-3xl bg-card p-6 shadow-bento ring-1 ring-border lg:p-8">
+                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/10" />
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <Lock className="h-5 w-5" />
                 </span>
                 <h3 className="mt-4 text-xl font-semibold">
@@ -218,15 +220,19 @@ export default async function LandingPage() {
                   </span>
                 </div>
               </div>
+              </Reveal>
 
-              {FEATURES.map((feature) => (
+              {FEATURES.map((feature, i) => (
+                <Reveal key={feature.title} delay={(i % 3) * 80}>
                 <div
-                  key={feature.title}
-                  className="rounded-2xl border bg-card p-6 transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  className="h-full rounded-3xl bg-card p-6 shadow-bento ring-1 ring-border transition-all hover:shadow-bento-hover motion-safe:hover:scale-[1.02]"
                 >
                   <span
-                    className="flex h-11 w-11 items-center justify-center rounded-xl text-white"
-                    style={{ backgroundColor: feature.color }}
+                    className="flex h-11 w-11 items-center justify-center rounded-2xl"
+                    style={{
+                      color: feature.color,
+                      backgroundColor: `color-mix(in oklab, ${feature.color} 14%, transparent)`,
+                    }}
                   >
                     <feature.icon className="h-5 w-5" />
                   </span>
@@ -235,6 +241,7 @@ export default async function LandingPage() {
                     {feature.description}
                   </p>
                 </div>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -242,34 +249,34 @@ export default async function LandingPage() {
 
         {/* Cara Kerja */}
         <section id="cara-kerja" className="py-20">
-          <div className="mx-auto max-w-3xl px-4 md:px-6">
-            <div className="mx-auto max-w-2xl text-center">
+          <div className="mx-auto max-w-5xl px-4 md:px-6">
+            <Reveal className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 Empat langkah, mulai hari ini
               </h2>
               <p className="mt-3 text-muted-foreground">
                 Nggak ada setup ribet. Beneran cuma ini urutannya.
               </p>
-            </div>
+            </Reveal>
 
-            <ol className="mt-12 space-y-8">
+            <ol className="mt-12 grid gap-4 sm:grid-cols-2">
               {STEPS.map((step, i) => (
-                <li key={step.title} className="relative flex gap-5">
-                  <div className="flex flex-col items-center">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 text-sm font-bold text-white">
-                      {i + 1}
-                    </span>
-                    {i < STEPS.length - 1 && (
-                      <span className="mt-1 w-px flex-1 bg-border" aria-hidden />
-                    )}
-                  </div>
-                  <div className="pb-2">
+                <Reveal
+                  as="li"
+                  key={step.title}
+                  delay={(i % 2) * 100}
+                  className="relative flex gap-4 rounded-3xl bg-card p-6 shadow-bento ring-1 ring-border"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-gradient text-sm font-bold text-white">
+                    {i + 1}
+                  </span>
+                  <div>
                     <h3 className="font-semibold">{step.title}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {step.description}
                     </p>
                   </div>
-                </li>
+                </Reveal>
               ))}
             </ol>
           </div>
@@ -278,21 +285,21 @@ export default async function LandingPage() {
         {/* FAQ */}
         <section id="faq" className="border-t bg-muted/30 py-20">
           <div className="mx-auto max-w-6xl px-4 md:px-6">
-            <div className="mx-auto max-w-2xl text-center">
+            <Reveal className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 Pertanyaan yang sering muncul
               </h2>
-            </div>
-            <div className="mt-12">
+            </Reveal>
+            <Reveal className="mt-12">
               <LandingFaq />
-            </div>
+            </Reveal>
           </div>
         </section>
 
         {/* CTA penutup */}
         <section className="py-20">
           <div className="mx-auto max-w-4xl px-4 md:px-6">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 px-6 py-14 text-center text-white sm:px-14">
+            <Reveal className="relative overflow-hidden rounded-3xl bg-brand-gradient px-6 py-14 text-center text-white sm:px-14">
               <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
               <div className="pointer-events-none absolute -bottom-14 -left-10 h-36 w-36 rounded-full bg-white/10" />
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -321,7 +328,7 @@ export default async function LandingPage() {
                   Coba Tanpa Akun
                 </Button>
               </div>
-            </div>
+            </Reveal>
           </div>
         </section>
       </main>
@@ -329,7 +336,7 @@ export default async function LandingPage() {
       <footer className="border-t py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 text-center md:flex-row md:justify-between md:text-left">
           <Link href="/" className="flex items-center gap-2 text-sm font-bold">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 text-white">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-gradient text-white">
               <Wallet className="h-3.5 w-3.5" />
             </span>
             DuitKu

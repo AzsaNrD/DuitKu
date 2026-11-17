@@ -111,7 +111,7 @@ export function RecurringClient({
             <EmptyState
               icon={Repeat}
               title="Belum ada jadwal berulang"
-              description="Gaji bulanan, langganan streaming, cicilan: sekali diatur, transaksinya tercatat otomatis setiap periode. Nggak perlu ingat-ingat lagi."
+              description="Gaji bulanan, langganan streaming, cicilan. Sekali diatur, transaksinya tercatat otomatis setiap periode. Nggak perlu ingat-ingat lagi."
               action={
                 wallets.length > 0 ? (
                   <Button
@@ -183,9 +183,9 @@ export function RecurringClient({
                     className={cn(
                       "money shrink-0 text-sm font-semibold",
                       rule.type === "income" &&
-                        "text-green-600 dark:text-green-400",
+                        "text-income",
                       rule.type === "expense" &&
-                        "text-red-600 dark:text-red-400"
+                        "text-expense"
                     )}
                   >
                     {rule.type === "income"
@@ -211,6 +211,7 @@ export function RecurringClient({
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label="Edit jadwal berulang"
                       onClick={() => {
                         setEditing(rule);
                         setOpen(true);
@@ -221,6 +222,7 @@ export function RecurringClient({
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label="Hapus jadwal berulang"
                       onClick={() => setDeleting(rule)}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />

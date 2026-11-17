@@ -120,7 +120,7 @@ export function WalletsClient({
             <EmptyState
               icon={WalletIcon}
               title="Belum ada dompet"
-              description="Dompet adalah tempat uangmu berada: cash di saku, rekening bank, atau e-wallet. Tambahkan satu untuk mulai mencatat transaksi."
+              description="Dompet adalah tempat uangmu berada, entah itu cash di saku, rekening bank, atau e-wallet. Tambahkan satu untuk mulai mencatat transaksi."
               action={
                 <Button onClick={openCreate}>
                   <Plus /> Tambah Dompet Pertama
@@ -156,18 +156,18 @@ export function WalletsClient({
                     <TiltCard key={wallet.id} max={6}>
                       <Card className="h-full transition-shadow hover:shadow-md">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                          <div className="flex items-center gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
                             <span
-                              className="flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm"
+                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
                               style={{ backgroundColor: wallet.color }}
                             >
                               <GroupIcon className="h-5 w-5" />
                             </span>
-                            <CardTitle className="text-base">
+                            <CardTitle className="min-w-0 text-base break-words">
                               {wallet.name}
                             </CardTitle>
                           </div>
-                          <div className="flex gap-1">
+                          <div className="flex shrink-0 gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -295,8 +295,8 @@ function WalletFormDialog({
         <DialogHeader>
           <DialogTitle>{editing ? "Edit Dompet" : "Tambah Dompet"}</DialogTitle>
           <DialogDescription>
-            Dompet adalah tempat uangmu berada: cash, rekening bank, atau
-            e-wallet.
+            Dompet adalah tempat uangmu berada, entah itu cash, rekening bank,
+            atau e-wallet.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

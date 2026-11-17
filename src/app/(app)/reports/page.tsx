@@ -19,20 +19,16 @@ import {
   getSnackSpending,
   getSpendingByWeekday,
 } from "@/db/queries";
-import {
-  currentMonth,
-  formatIDR,
-  formatMonth,
-  shiftMonth,
-  todayString,
-} from "@/lib/format";
-import { addDays, countWeekdays, daysInMonth } from "@/lib/snack";
+import { formatIDR, todayString } from "@/lib/format";
+import { addDays, countWeekdays } from "@/lib/snack";
 import {
   daysBetweenInclusive,
   periodKeyOf,
   periodLabel,
   periodLength,
+  periodNoun,
   periodRange,
+  shiftPeriodKey,
 } from "@/lib/period";
 import { buildInsights } from "@/lib/insights";
 import {
@@ -50,20 +46,28 @@ import { CategoryBars } from "./category-bars";
 
 export const metadata: Metadata = { title: "Laporan" };
 
-function ChangeBadge({ current, previous }: { current: number; previous: number }) {
+function ChangeBadge({
+  current,
+  previous,
+  noun,
+}: {
+  current: number;
+  previous: number;
+  noun: string;
+}) {
   if (previous === 0) return null;
   const pct = ((current - previous) / previous) * 100;
   const up = pct > 0;
   return (
     <span
-      className={`inline-flex items-center gap-1 text-xs font-medium ${up ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
+      className={`inline-flex items-center gap-1 text-xs font-medium ${up ? "text-expense" : "text-income"}`}
     >
       {up ? (
         <TrendingUp className="h-3 w-3" />
       ) : (
         <TrendingDown className="h-3 w-3" />
       )}
-      {Math.abs(pct).toFixed(0)}% vs bulan lalu
+      {Math.abs(pct).toFixed(0)}% vs {noun} lalu
     </span>
   );
 }
@@ -75,11 +79,22 @@ export default async function ReportsPage({
 }) {
   const userId = await requireUserId();
   const params = await searchParams;
+  // Laporan mengikuti periode gajian: bulan kalender kalau gajian tanggal 1,
+  // selain itu rentang gajian. `month` adalah kunci periode ("YYYY-MM" =
+  // bulan tempat periode dimulai), sama seperti halaman Alokasi.
+  const payday = await getPayday(userId);
+  const today = todayString();
+  const currentKey = periodKeyOf(today, payday);
   const monthParam = Array.isArray(params.month) ? params.month[0] : params.month;
   const month = /^\d{4}-\d{2}$/.test(monthParam ?? "")
     ? (monthParam as string)
-    : currentMonth();
-  const prevMonth = shiftMonth(month, -1);
+    : currentKey;
+  const prevMonth = shiftPeriodKey(month, -1);
+  const range = periodRange(month, payday);
+  const prevRange = periodRange(prevMonth, payday);
+  const noun = periodNoun(payday);
+  const Noun = noun === "bulan" ? "Bulan" : "Periode";
+  const label = periodLabel(month, payday);
 
   const [
     summary,
@@ -89,16 +104,14 @@ export default async function ReportsPage({
     incomeByCategory,
     trend,
     snackPlan,
-    payday,
   ] = await Promise.all([
-    getMonthSummary(userId, month),
-    getMonthSummary(userId, prevMonth),
-    getExpenseByCategory(userId, month),
-    getExpenseByCategory(userId, prevMonth),
-    getIncomeByCategory(userId, month),
-    getMonthlyTrend(userId, month, 6),
+    getMonthSummary(userId, range),
+    getMonthSummary(userId, prevRange),
+    getExpenseByCategory(userId, range),
+    getExpenseByCategory(userId, prevRange),
+    getIncomeByCategory(userId, range),
+    getMonthlyTrend(userId, month, 6, payday),
     getSnackPlan(userId),
-    getPayday(userId),
   ]);
 
   const net = summary.income - summary.expense;
@@ -106,27 +119,18 @@ export default async function ReportsPage({
     summary.income > 0 ? (net / summary.income) * 100 : null;
 
   // Insight kebiasaan. Pola per hari memakai 91 hari (13 minggu) yang
-  // berakhir hari ini, atau akhir bulan untuk bulan yang sudah lewat, supaya
-  // tiap hari dalam seminggu muncul tepat 13 kali.
-  const today = todayString();
-  const isCurrentMonth = month === currentMonth();
-  // bulan yang belum terjadi tidak punya kebiasaan untuk dianalisis; tanpa
-  // pengecualian ini jendela 91 hari akan menyedot transaksi bulan berjalan
-  const isFutureMonth = month > currentMonth();
-  const monthDays = daysInMonth(month);
-  const windowEnd = isCurrentMonth
-    ? today
-    : `${month}-${String(monthDays).padStart(2, "0")}`;
+  // berakhir hari ini, atau akhir periode untuk periode yang sudah lewat,
+  // supaya tiap hari dalam seminggu muncul tepat 13 kali.
+  const isCurrentMonth = month === currentKey;
+  // periode yang belum terjadi tidak punya kebiasaan untuk dianalisis; tanpa
+  // pengecualian ini jendela 91 hari akan menyedot transaksi periode berjalan
+  const isFutureMonth = month > currentKey;
+  const monthDays = periodLength(month, payday);
+  const windowEnd = isCurrentMonth ? today : range.end;
   const windowStart = addDays(windowEnd, -90);
-  // Batas jajan berlaku per periode gajian, jadi kalau gajian bukan tanggal 1
-  // proyeksinya dihitung dari periode yang memuat hari ini, bukan dari bulan
-  // kalender yang sedang dibuka. Insight lain tetap per bulan kalender.
-  const usePayPeriod = payday > 1 && isCurrentMonth && !!snackPlan;
-  const payKey = periodKeyOf(today, payday);
-  const payRange = periodRange(payKey, payday);
 
-  const [weekdayRows, snackSpending, snackPeriodSpending] = isFutureMonth
-    ? [[], null, null]
+  const [weekdayRows, snackSpending] = isFutureMonth
+    ? [[], null]
     : await Promise.all([
         getSpendingByWeekday(
           userId,
@@ -135,19 +139,19 @@ export default async function ReportsPage({
           snackPlan ? snackPlan.categoryIds : null
         ),
         snackPlan
-          ? getSnackSpending(userId, month, today, snackPlan.categoryIds)
-          : null,
-        usePayPeriod && snackPlan
-          ? getSnackSpending(userId, payRange, today, snackPlan.categoryIds)
+          ? getSnackSpending(userId, range, today, snackPlan.categoryIds)
           : null,
       ]);
   const occurrences = countWeekdays(windowStart, windowEnd);
   const totalsByDow = new Map(weekdayRows.map((r) => [r.dow, r.total]));
   const insights = isFutureMonth ? [] : buildInsights({
     money: formatIDR,
-    monthLabel: formatMonth(month),
+    monthLabel: label,
+    noun,
     isCurrentMonth,
-    daysElapsed: isCurrentMonth ? Number(today.slice(8, 10)) : monthDays,
+    daysElapsed: isCurrentMonth
+      ? daysBetweenInclusive(range.start, today)
+      : monthDays,
     daysInMonth: monthDays,
     totalExpense: summary.expense,
     prevTotalExpense: prevSummary.expense,
@@ -165,7 +169,7 @@ export default async function ReportsPage({
       scopeLabel: snackPlan ? "jajan" : "pengeluaran",
       windowLabel: isCurrentMonth
         ? "13 minggu terakhir"
-        : `13 minggu sampai akhir ${formatMonth(month)}`,
+        : `13 minggu sampai akhir ${label}`,
       rows: occurrences.map((occ, dow) => ({
         dow,
         total: totalsByDow.get(dow) ?? 0,
@@ -178,14 +182,6 @@ export default async function ReportsPage({
             limit: snackPlan.limit,
             spentMonth: snackSpending.spentMonth,
             count: snackSpending.count,
-            period: snackPeriodSpending
-              ? {
-                  spent: snackPeriodSpending.spentMonth,
-                  daysElapsed: daysBetweenInclusive(payRange.start, today),
-                  length: periodLength(payKey, payday),
-                  label: periodLabel(payKey, payday),
-                }
-              : undefined,
           }
         : null,
   });
@@ -194,12 +190,14 @@ export default async function ReportsPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">Laporan Bulanan</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {payday > 1 ? "Laporan per Periode" : "Laporan Bulanan"}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Evaluasi keuangan {formatMonth(month)}
+            Evaluasi keuangan {label}
           </p>
         </div>
-        <MonthNav month={month} />
+        <MonthNav month={month} label={payday > 1 ? label : undefined} />
       </div>
 
       {/* Ringkasan */}
@@ -207,35 +205,36 @@ export default async function ReportsPage({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <ArrowDownLeft className="h-4 w-4 text-green-500" /> Pemasukan
+              <ArrowDownLeft className="h-4 w-4 text-income" /> Pemasukan
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="money text-2xl font-bold text-green-600 dark:text-green-400">
+            <p className="money text-2xl font-bold text-income">
               {formatIDR(summary.income)}
             </p>
             <p className="money text-xs text-muted-foreground">
-              Bulan lalu: {formatIDR(prevSummary.income)}
+              {Noun} lalu: {formatIDR(prevSummary.income)}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <ArrowUpRight className="h-4 w-4 text-red-500" /> Pengeluaran
+              <ArrowUpRight className="h-4 w-4 text-expense" /> Pengeluaran
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="money text-2xl font-bold text-red-600 dark:text-red-400">
+            <p className="money text-2xl font-bold text-expense">
               {formatIDR(summary.expense)}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <p className="money text-xs text-muted-foreground">
-                Bulan lalu: {formatIDR(prevSummary.expense)}
+                {Noun} lalu: {formatIDR(prevSummary.expense)}
               </p>
               <ChangeBadge
                 current={summary.expense}
                 previous={prevSummary.expense}
+                noun={noun}
               />
             </div>
           </CardContent>
@@ -248,7 +247,7 @@ export default async function ReportsPage({
           </CardHeader>
           <CardContent className="space-y-1">
             <p
-              className={`money text-2xl font-bold ${net >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+              className={`money text-2xl font-bold ${net >= 0 ? "text-income" : "text-expense"}`}
             >
               {net >= 0 ? "+" : ""}
               {formatIDR(net)}
@@ -272,7 +271,7 @@ export default async function ReportsPage({
         <CardHeader>
           <CardTitle className="text-base">Kebiasaan belanjamu</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Dihitung dari transaksi yang kamu catat di {formatMonth(month)}.
+            Dihitung dari transaksi yang kamu catat di {label}.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -304,10 +303,22 @@ export default async function ReportsPage({
       {/* Tren 6 bulan terakhir */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Tren 6 Bulan Terakhir</CardTitle>
+          <CardTitle className="text-base">
+            Tren 6 {Noun} Terakhir
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <TrendChart data={trend} />
+          <TrendChart
+            data={trend.map((t) =>
+              payday > 1
+                ? {
+                    ...t,
+                    label: periodLabel(t.month, payday)
+                      .split(" sampai ")[0],
+                  }
+                : t
+            )}
+          />
         </CardContent>
       </Card>
 
@@ -318,14 +329,16 @@ export default async function ReportsPage({
               Komposisi Pengeluaran
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ExpensePieChart
-              data={expenseByCategory.map((c) => ({
-                name: c.name,
-                color: c.color,
-                total: c.total,
-              }))}
-            />
+          <CardContent className="flex flex-1 items-center">
+            <div className="w-full">
+              <ExpensePieChart
+                data={expenseByCategory.map((c) => ({
+                  name: c.name,
+                  color: c.color,
+                  total: c.total,
+                }))}
+              />
+            </div>
           </CardContent>
         </Card>
 

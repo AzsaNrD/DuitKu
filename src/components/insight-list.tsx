@@ -23,11 +23,11 @@ const ICONS: Record<InsightIcon, LucideIcon> = {
 // kalimat, dan label tersembunyi untuk pembaca layar.
 const TONE: Record<InsightTone, { chip: string; sr: string }> = {
   warn: {
-    chip: "bg-amber-500/10 text-amber-800 dark:text-amber-300",
+    chip: "bg-warning/10 text-warning",
     sr: "Perlu perhatian: ",
   },
   good: {
-    chip: "bg-green-500/10 text-green-800 dark:text-green-300",
+    chip: "bg-income/10 text-income",
     sr: "Kabar baik: ",
   },
   info: { chip: "bg-muted text-foreground", sr: "" },
