@@ -59,7 +59,7 @@ export function PaydayButton({ payday }: { payday: PaydayPlan }) {
         className="max-sm:min-h-11"
       >
         <CalendarDays />
-        {payday.day > 1 ? `Gajian tgl ${payday.day}` : "Tanggal gajian"}
+        {payday.day > 1 ? `Gajian tgl ${payday.day}` : "Periode"}
       </Button>
       {open && (
         <PaydayDialog
@@ -112,11 +112,11 @@ function PaydayDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tanggal gajian</DialogTitle>
+          <DialogTitle>Periode dan tanggal gajian</DialogTitle>
           <DialogDescription>
             Alokasi dan jatah jajan dihitung dari tanggal gajian sampai sehari
-            sebelum gajian berikutnya. Isi 1 kalau kamu mengikuti bulan
-            kalender biasa.
+            sebelum gajian berikutnya. Isi 1 kalau kamu tidak punya gaji tetap
+            atau mengikuti bulan kalender biasa.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-2" noValidate>

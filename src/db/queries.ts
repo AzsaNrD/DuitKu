@@ -243,6 +243,10 @@ export async function getTransactionsPage(
         categoryIcon: categories.icon,
         transferToWalletId: transactions.transferToWalletId,
         transferToWalletName: transferWallets.name,
+        // transaksi ini adalah biaya admin milik transaksi lain
+        feeForId: transactions.feeForId,
+        // total biaya admin yang menempel di transaksi ini
+        fee: sql<string>`coalesce((select sum(f.amount) from transactions f where f.fee_for_id = ${transactions.id}), 0)`,
       })
       .from(transactions)
       .innerJoin(wallets, eq(transactions.walletId, wallets.id))

@@ -102,6 +102,7 @@ export async function importGuestData(input: GuestImportInput) {
         date: t.date,
         note: t.note,
         transferToWalletId: t.transferToWalletId,
+        feeForId: t.feeForId ?? null,
       }))
     );
   }

@@ -21,6 +21,19 @@ const amountNonNegative = z.preprocess(
     .min(0, "Tidak boleh negatif")
 ) as unknown as z.ZodType<number, number>;
 
+// Nominal opsional: kosong atau 0 berarti tidak ada
+const amountOptional = z.preprocess(
+  (v) => {
+    const s = stripThousands(v);
+    return s === "" || s === null ? undefined : s;
+  },
+  z.coerce
+    .number<number>()
+    .int("Harus bilangan bulat")
+    .min(0, "Tidak boleh negatif")
+    .optional()
+) as unknown as z.ZodType<number | undefined, number | undefined>;
+
 export const loginSchema = z.object({
   email: z.email("Email tidak valid"),
   password: z.string().min(1, "Password wajib diisi"),
@@ -55,6 +68,8 @@ export const transactionSchema = z
     transferToWalletId: z.string().optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
     note: z.string().max(255).optional(),
+    // biaya admin, hanya untuk pengeluaran dan transfer
+    fee: amountOptional.optional(),
   })
   .refine((d) => d.type === "transfer" || !!d.categoryId, {
     message: "Pilih kategori",
@@ -70,7 +85,11 @@ export const transactionSchema = z
       message: "Dompet asal dan tujuan tidak boleh sama",
       path: ["transferToWalletId"],
     }
-  );
+  )
+  .refine((d) => d.type !== "income" || !d.fee, {
+    message: "Biaya admin hanya untuk pengeluaran dan transfer",
+    path: ["fee"],
+  });
 
 export const recurringSchema = z
   .object({
@@ -215,6 +234,8 @@ export const guestImportSchema = z.object({
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       note: z.string().nullable(),
       transferToWalletId: z.uuid().nullable(),
+      // cadangan lama tidak punya kolom ini
+      feeForId: z.uuid().nullable().optional(),
     })
   ),
 });

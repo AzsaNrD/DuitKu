@@ -29,7 +29,8 @@ import {
   updateTransaction,
 } from "@/actions/transactions";
 import { transactionSchema, type TransactionInput } from "@/lib/zod-schemas";
-import { todayString } from "@/lib/format";
+import { formatIDR, todayString } from "@/lib/format";
+import { FEE_PRESETS } from "@/lib/fee";
 import type { Category, Wallet, TransactionType } from "@/db/schema";
 
 // override untuk mode tanpa akun (localStorage) — defaultnya action server
@@ -50,6 +51,8 @@ export type EditableTransaction = {
   transferToWalletId: string | null;
   date: string;
   note: string | null;
+  // biaya admin yang menempel di transaksi ini (0 = tidak ada)
+  fee?: number;
 };
 
 // Isian awal untuk transaksi baru (bukan edit), mis. tombol Transfer di
@@ -94,6 +97,7 @@ export function TransactionFormDialog({
           transferToWalletId: editing.transferToWalletId ?? undefined,
           date: editing.date,
           note: editing.note ?? "",
+          fee: editing.fee ? editing.fee : undefined,
         }
       : {
           type: preset?.type ?? "expense",
@@ -103,11 +107,20 @@ export function TransactionFormDialog({
           transferToWalletId: preset?.transferToWalletId,
           date: todayString(),
           note: "",
+          fee: undefined,
         },
   });
 
   const type = useWatch({ control, name: "type" });
   const walletId = useWatch({ control, name: "walletId" });
+  const amountText = useWatch({ control, name: "amount" });
+  const feeText = useWatch({ control, name: "fee" });
+
+  // nominal diketik dengan titik ribuan ("2.500"), jadi dibersihkan dulu
+  const toNumber = (v: unknown) => Number(String(v ?? "").replace(/\D/g, "")) || 0;
+  const feeAmount = toNumber(feeText);
+  const totalOut = toNumber(amountText) + feeAmount;
+  const sourceWalletName = wallets.find((w) => w.id === walletId)?.name;
 
   const filteredCategories = categories.filter((c) =>
     type === "income" ? c.type === "income" : c.type === "expense"
@@ -162,6 +175,8 @@ export function TransactionFormDialog({
                   // reset pilihan yang tidak relevan dengan tipe baru
                   setValue("categoryId", undefined);
                   setValue("transferToWalletId", undefined);
+                  // biaya admin tidak berlaku untuk pemasukan
+                  if (v === "income") setValue("fee", undefined);
                 }}
               >
                 <TabsList className="w-full">
@@ -194,6 +209,31 @@ export function TransactionFormDialog({
               </p>
             )}
           </div>
+
+          {type !== "income" && (
+            <div className="space-y-2">
+              <Label htmlFor="tx-fee">Biaya admin (opsional)</Label>
+              <AmountInput
+                id="tx-fee"
+                min={0}
+                placeholder="cth: 2.500"
+                {...register("fee")}
+              />
+              <QuickAmounts targetId="tx-fee" presets={FEE_PRESETS} replace />
+              {errors.fee && (
+                <p className="text-sm text-destructive">{errors.fee.message}</p>
+              )}
+              {feeAmount > 0 && sourceWalletName && (
+                <p className="text-xs text-muted-foreground">
+                  Total keluar dari {sourceWalletName}:{" "}
+                  <span className="money font-medium text-foreground">
+                    {formatIDR(totalOut)}
+                  </span>
+                  . Biaya dicatat sebagai pengeluaran Biaya Admin.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>{type === "transfer" ? "Dari Dompet" : "Dompet"}</Label>

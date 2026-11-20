@@ -53,6 +53,7 @@ export function GuestMigrationDialog({
         date: t.date,
         note: t.note,
         transferToWalletId: t.transferToWalletId,
+        feeForId: t.feeForId ?? null,
       })),
     });
     setLoading(false);

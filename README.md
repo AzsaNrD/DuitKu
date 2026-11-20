@@ -11,6 +11,7 @@ Semuanya jalan di tier gratis: Next.js, Neon Postgres, dan Vercel.
 **Mencatat uang**
 - Dompet cash, bank, dan e-wallet. Saldo dihitung dari saldo awal ditambah semua transaksi, bukan angka yang diketik ulang.
 - Transaksi pemasukan, pengeluaran, dan transfer antar dompet. Tombol Transfer ada di tiap kartu dompet.
+- Biaya admin opsional di pengeluaran dan transfer. Biayanya tercatat sebagai pengeluaran di kategori Biaya Admin dan tertaut ke transaksinya, jadi ikut berubah atau terhapus bersamanya.
 - Kategori bawaan yang bisa kamu tambah sendiri, lengkap dengan ikon dan warna.
 - Sesuaikan saldo: ketik saldo sebenarnya, selisihnya tercatat sebagai penyesuaian.
 - Transaksi berulang untuk gaji, tagihan, langganan, atau transfer rutin ke dompet tabungan.
@@ -136,3 +137,5 @@ Proyek ini memakai Next.js 16, yang punya perubahan dibanding versi lama. Baca p
 Tanggal gajian dibatasi 1 sampai 28 supaya tiap bulan pasti punya tanggal itu. Kunci periode berbentuk `YYYY-MM` dan menunjuk bulan tempat periode dimulai, jadi dengan gajian tanggal 21, kunci `2026-10` berarti 21 Oktober sampai 20 November 2026. Fungsinya ada di `src/lib/period.ts`.
 
 Tanggal mulai satu periode bisa digeser lewat tabel `payday_overrides` (kunci periode dan tanggal mulai sebenarnya, yang harus jatuh di bulan yang sama dengan kuncinya). Periode berakhir sehari sebelum periode berikutnya dimulai. Semua fungsi periode menerima `PaydayPlan` (tanggal biasa ditambah daftar geseran), bukan satu angka. Setelah menarik perubahan ini, jalankan `npm run db:push` untuk membuat tabelnya.
+
+Biaya admin disimpan sebagai transaksi pengeluaran terpisah yang menunjuk induknya lewat kolom `transactions.fee_for_id` (hapus berantai). Induk dan biayanya dibuat dalam satu perintah INSERT. Kategori "Biaya Admin" dibuat otomatis saat pertama dipakai, dan baris biaya tidak bisa diedit langsung, hanya lewat transaksi induknya.

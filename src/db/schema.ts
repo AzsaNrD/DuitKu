@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 
@@ -139,10 +140,18 @@ export const transactions = pgTable(
       () => wallets.id,
       { onDelete: "cascade" }
     ),
+    // Biaya admin disimpan sebagai pengeluaran terpisah yang menunjuk
+    // transaksi induknya (transfer atau pengeluaran); ikut terhapus bersama
+    // induknya. Kosong untuk transaksi biasa.
+    feeForId: text("fee_for_id").references(
+      (): AnyPgColumn => transactions.id,
+      { onDelete: "cascade" }
+    ),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
     index("transactions_user_id_idx").on(table.userId),
+    index("transactions_fee_for_id_idx").on(table.feeForId),
     index("transactions_user_date_idx").on(table.userId, table.date),
     index("transactions_wallet_id_idx").on(table.walletId),
     index("transactions_category_id_idx").on(table.categoryId),

@@ -155,6 +155,7 @@ export function TransactionsClient({
       transferToWalletId: row.transferToWalletId,
       date: row.date,
       note: row.note,
+      fee: Number(row.fee),
     });
     setFormOpen(true);
   }
@@ -521,6 +522,10 @@ export function TransactionItem({
   const isIncome = row.type === "income";
   const isTransfer = row.type === "transfer";
   const isAdjustment = row.type === "adjustment";
+  // biaya admin diubah lewat transaksi induknya, jadi barisnya tidak punya
+  // tombol edit (tombol hapus tetap ada)
+  const isFee = !!row.feeForId;
+  const fee = Number(row.fee);
   // amount penyesuaian bisa negatif (nilai bertanda), beda dari tipe lain
   const adjustmentAmount = isAdjustment ? Number(row.amount) : 0;
 
@@ -566,6 +571,11 @@ export function TransactionItem({
           ]
             .filter(Boolean)
             .join(" · ")}
+          {fee > 0 && (
+            <>
+              {" · "}+ biaya admin <span className="money">{formatIDR(fee)}</span>
+            </>
+          )}
         </p>
       </div>
       <span
@@ -589,7 +599,7 @@ export function TransactionItem({
       </span>
       {(onEdit || onDelete) && (
         <div className="flex shrink-0 gap-1">
-          {onEdit && !isAdjustment && (
+          {onEdit && !isAdjustment && !isFee && (
             <Button
               variant="ghost"
               size="icon"

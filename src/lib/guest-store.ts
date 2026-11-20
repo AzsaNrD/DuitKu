@@ -25,6 +25,13 @@ import type { ActionResult } from "@/lib/action-toast";
 import { DEFAULT_CATEGORIES } from "@/lib/default-categories";
 import { todayString } from "@/lib/format";
 import {
+  FEE_CATEGORY_COLOR,
+  FEE_CATEGORY_ICON,
+  FEE_CATEGORY_NAME,
+  FEE_NOTE,
+  feeApplies,
+} from "@/lib/fee";
+import {
   EMPTY_WALLET_USAGE,
   walletDeleteBlockedMessage,
   type WalletUsage,
@@ -289,6 +296,7 @@ export async function adjustGuestWalletBalance(
     date: todayString(),
     note: parsed.data.note,
     transferToWalletId: null,
+    feeForId: null,
     createdAt: new Date(),
   };
   commit({ ...current, transactions: [...current.transactions, tx] });
@@ -375,6 +383,44 @@ function toTransactionValues(data: TransactionInput) {
   };
 }
 
+// Kategori "Biaya Admin" dibuat saat pertama kali dibutuhkan
+function withFeeCategory(data: GuestData): { data: GuestData; id: string } {
+  const found = data.categories.find(
+    (c) => c.name === FEE_CATEGORY_NAME && c.type === "expense"
+  );
+  if (found) return { data, id: found.id };
+  const category: Category = {
+    id: makeId(),
+    userId: GUEST_USER_ID,
+    name: FEE_CATEGORY_NAME,
+    type: "expense",
+    icon: FEE_CATEGORY_ICON,
+    color: FEE_CATEGORY_COLOR,
+    isDefault: false,
+    createdAt: new Date(),
+  };
+  return { data: { ...data, categories: [...data.categories, category] }, id: category.id };
+}
+
+function guestFeeRow(
+  parentId: string,
+  base: ReturnType<typeof toTransactionValues>,
+  fee: number,
+  categoryId: string
+): Omit<Transaction, "id" | "createdAt"> {
+  return {
+    userId: GUEST_USER_ID,
+    walletId: base.walletId,
+    categoryId,
+    type: "expense",
+    amount: String(fee),
+    date: base.date,
+    note: FEE_NOTE,
+    transferToWalletId: null,
+    feeForId: parentId,
+  };
+}
+
 export async function createGuestTransaction(
   input: TransactionInput
 ): Promise<ActionResult> {
@@ -382,14 +428,27 @@ export async function createGuestTransaction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
   }
-  const current = loadGuestData();
+  let current = loadGuestData();
+  const values = toTransactionValues(parsed.data);
   const tx: Transaction = {
     id: makeId(),
     userId: GUEST_USER_ID,
     createdAt: new Date(),
-    ...toTransactionValues(parsed.data),
+    feeForId: null,
+    ...values,
   };
-  commit({ ...current, transactions: [...current.transactions, tx] });
+  const added: Transaction[] = [tx];
+  const fee = feeApplies(parsed.data.type) ? (parsed.data.fee ?? 0) : 0;
+  if (fee > 0) {
+    const ensured = withFeeCategory(current);
+    current = ensured.data;
+    added.push({
+      id: makeId(),
+      createdAt: new Date(),
+      ...guestFeeRow(tx.id, values, fee, ensured.id),
+    });
+  }
+  commit({ ...current, transactions: [...current.transactions, ...added] });
   return { success: true };
 }
 
@@ -401,16 +460,30 @@ export async function updateGuestTransaction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
   }
-  const current = loadGuestData();
-  if (!current.transactions.some((t) => t.id === id)) {
-    return { error: "Transaksi tidak ditemukan" };
+  let current = loadGuestData();
+  const existing = current.transactions.find((t) => t.id === id);
+  if (!existing) return { error: "Transaksi tidak ditemukan" };
+  if (existing.feeForId) {
+    return { error: "Biaya admin diubah lewat transaksi induknya" };
   }
-  commit({
-    ...current,
-    transactions: current.transactions.map((t) =>
-      t.id === id ? { ...t, ...toTransactionValues(parsed.data) } : t
-    ),
-  });
+
+  const values = toTransactionValues(parsed.data);
+  let list = current.transactions.map((t) =>
+    t.id === id ? { ...t, ...values } : t
+  );
+  const child = list.find((t) => t.feeForId === id);
+  const fee = feeApplies(parsed.data.type) ? (parsed.data.fee ?? 0) : 0;
+  if (fee > 0) {
+    const ensured = withFeeCategory(current);
+    current = ensured.data;
+    const row = guestFeeRow(id, values, fee, ensured.id);
+    list = child
+      ? list.map((t) => (t.id === child.id ? { ...t, ...row } : t))
+      : [...list, { id: makeId(), createdAt: new Date(), ...row }];
+  } else if (child) {
+    list = list.filter((t) => t.id !== child.id);
+  }
+  commit({ ...current, transactions: list });
   return { success: true };
 }
 
@@ -418,7 +491,10 @@ export async function deleteGuestTransaction(id: string): Promise<ActionResult> 
   const current = loadGuestData();
   commit({
     ...current,
-    transactions: current.transactions.filter((t) => t.id !== id),
+    // biaya admin yang menempel ikut terhapus (meniru cascade di DB)
+    transactions: current.transactions.filter(
+      (t) => t.id !== id && t.feeForId !== id
+    ),
   });
   return { success: true };
 }
@@ -458,6 +534,13 @@ export function computeTransactionsPage(
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
+  const feeByParent = new Map<string, number>();
+  for (const t of data.transactions) {
+    if (t.feeForId) {
+      feeByParent.set(t.feeForId, (feeByParent.get(t.feeForId) ?? 0) + Number(t.amount));
+    }
+  }
+
   const rows: TransactionRow[] = paged.map((t) => {
     const wallet = walletMap.get(t.walletId);
     const category = t.categoryId ? categoryMap.get(t.categoryId) : undefined;
@@ -478,6 +561,8 @@ export function computeTransactionsPage(
       categoryIcon: category?.icon ?? null,
       transferToWalletId: t.transferToWalletId,
       transferToWalletName: transferWallet?.name ?? null,
+      feeForId: t.feeForId ?? null,
+      fee: String(feeByParent.get(t.id) ?? 0),
     };
   });
 
@@ -656,13 +741,19 @@ export function readGuestBackup(
         walletIds.has(t.walletId) &&
         (!t.transferToWalletId || walletIds.has(t.transferToWalletId))
     )
-    .map((t) =>
-      t.categoryId && !categoryIds.has(t.categoryId)
-        ? { ...t, categoryId: null }
-        : t
-    );
+    .map((t) => ({
+      ...t,
+      feeForId: t.feeForId ?? null,
+      categoryId:
+        t.categoryId && !categoryIds.has(t.categoryId) ? null : t.categoryId,
+    }));
+  // biaya admin yang induknya tidak ikut terpulihkan dibuang juga
+  const keptIds = new Set(transactions.map((t) => t.id));
+  const consistent = transactions.filter(
+    (t) => !t.feeForId || keptIds.has(t.feeForId)
+  );
 
-  return { data: { wallets, categories, transactions } };
+  return { data: { wallets, categories, transactions: consistent } };
 }
 
 // Menimpa seluruh data mode tanpa akun di browser ini dengan isi cadangan.
