@@ -1,88 +1,109 @@
-# DuitKu — Catatan Keuangan Pribadi
+# DuitKu
 
-Aplikasi web untuk mencatat uang masuk/keluar, mengelola dompet (cash, bank, e-wallet), alokasi gaji, impian, dan laporan keuangan. Dibangun dengan teknologi gratis: Next.js + Neon Postgres + Vercel.
+Aplikasi web untuk mencatat keuangan pribadi dalam rupiah. Kamu mencatat uang masuk dan keluar, membagi gaji ke pos-pos, memisahkan jatah jajan, dan melihat ke mana uangmu pergi tiap periode.
+
+DuitKu dibuat untuk orang yang gajiannya tidak jatuh di tanggal 1. Kalau kamu gajian tanggal 21, periodemu berjalan dari 21 sampai 20 bulan berikutnya, dan Dashboard, Laporan, Alokasi, dan Jatah Jajan mengikuti rentang itu.
+
+Semuanya jalan di tier gratis: Next.js, Neon Postgres, dan Vercel.
 
 ## Fitur
 
-- 🔐 **Login** — email/password atau akun Google
-- 👛 **Multi dompet** — cash, rekening bank, e-wallet; saldo terhitung otomatis
-- 📝 **Catat transaksi** — pemasukan, pengeluaran, dan transfer antar dompet
-- 🏷️ **Kategori custom** — 12 kategori bawaan + bisa tambah sendiri (ikon & warna)
-- ⚖️ **Sesuaikan saldo** — masukkan saldo sebenarnya, selisihnya tercatat sebagai penyesuaian
-- 📐 **Alokasi gaji** — preset 50/30/20, 70/20/10, 40/30/20/10 atau buat sendiri; rencana vs realisasi per pos, plus batas pengeluaran per kategori (hijau/kuning/merah)
-- 📅 **Periode gajian** — atur tanggal gajian (mis. 21) dan Alokasi serta Jatah Jajan dihitung dari tanggal itu sampai sehari sebelum gajian berikutnya, bukan bulan kalender
-- 🍪 **Jatah jajan** — batas jajan per bulan (atau per periode gajian) dan kategori yang dihitung, jadi tampil sisa jatah aman untuk hari ini
-- 💡 **Insight kebiasaan** — kategori yang naik, hari paling boros, proyeksi akhir bulan, dibangun dari transaksi yang tercatat
-- 🐷 **Impian** — target tabungan, progres manual atau mengikuti saldo dompet
-- 🔁 **Transaksi berulang** — gaji, tagihan, langganan tercatat otomatis sesuai jadwal
-- 👤 **Mode tanpa akun** — data di browser, bisa diunduh sebagai cadangan JSON/CSV dan dipindah ke akun
-- 📊 **Dashboard & laporan** — grafik pengeluaran per kategori, perbandingan antar bulan, saving rate
-- 🌓 **Tema light/dark**
-- 📱 Responsif (mobile-friendly, ada bottom navigation)
+**Mencatat uang**
+- Dompet cash, bank, dan e-wallet. Saldo dihitung dari saldo awal ditambah semua transaksi, bukan angka yang diketik ulang.
+- Transaksi pemasukan, pengeluaran, dan transfer antar dompet. Tombol Transfer ada di tiap kartu dompet.
+- Kategori bawaan yang bisa kamu tambah sendiri, lengkap dengan ikon dan warna.
+- Sesuaikan saldo: ketik saldo sebenarnya, selisihnya tercatat sebagai penyesuaian.
+- Transaksi berulang untuk gaji, tagihan, langganan, atau transfer rutin ke dompet tabungan.
+- Dompet yang masih punya transfer, jadwal berulang, impian, atau pos alokasi tidak bisa dihapus, supaya saldo dompet lain tidak berubah diam-diam.
 
-## Tech Stack
+**Merencanakan uang**
+- Alokasi gaji dengan preset 50/30/20, 70/20/10, 40/30/20/10, atau rencanamu sendiri. Tiap pos menampilkan rencana dan realisasi, plus batas pengeluaran per kategori.
+- Pos tabungan menghitung realisasi dari transfer ke dompet tabungan yang kamu hubungkan.
+- Jatah jajan: tentukan batas dan kategori yang dihitung, lalu lihat sisa jatah yang aman dipakai hari ini. Aplikasi juga membandingkan batas itu dengan pos alokasi yang memuat kategori jajanmu.
+- Impian dengan progres manual atau mengikuti saldo dompet. Kalau ada tanggal target, kartu menunjukkan berapa yang perlu disisihkan per gajian dan kapan targetnya tercapai dengan laju 60 hari terakhir.
 
-Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 + shadcn/ui · Drizzle ORM · Neon Postgres · Auth.js (NextAuth v5) · Recharts
+**Membaca kebiasaan**
+- Dashboard dengan ringkasan periode, komposisi pengeluaran, dan transaksi terbaru.
+- Laporan per periode: pemasukan, pengeluaran, tabungan bersih, jumlah yang benar-benar ditransfer ke dompet tabungan, dan perkiraan uangmu cukup sampai kapan.
+- Insight kebiasaan yang dihitung dari transaksimu: proyeksi jajan, kategori yang naik, hari paling boros, porsi pengeluaran di 7 hari pertama setelah gajian, dan satu pengeluaran yang menonjol.
+- Ekspor transaksi ke CSV mengikuti filter yang aktif.
 
-## Setup
+**Lainnya**
+- Login dengan email dan password, atau akun Google.
+- Mode tanpa akun: data tersimpan di browser, bisa diunduh sebagai cadangan JSON atau CSV, dan bisa dipindah ke akun saat kamu mendaftar.
+- Tema terang dan gelap, tombol sembunyikan saldo, dan tampilan yang menyesuaikan layar HP.
+- Bisa dipasang ke layar utama sebagai PWA.
 
-### 1. Install dependencies
+## Tech stack
+
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui di atas Base UI, Drizzle ORM, Neon Postgres, Auth.js (NextAuth v5), Recharts.
+
+## Menjalankan di komputer sendiri
+
+Kamu butuh Node.js dan npm.
 
 ```bash
 npm install
+cp .env.local.example .env.local
 ```
 
-### 2. Siapkan database (Neon — gratis)
-
-1. Daftar di [neon.tech](https://neon.tech), buat project baru
-2. Klik **Connect**, salin connection string
-3. Salin `.env.local.example` menjadi `.env.local`, isi `DATABASE_URL` dengan connection string tadi
-
-> **Alternatif untuk development lokal:**
-> - **PGlite (tanpa install apa pun)** — set `DATABASE_URL="file:./.pglite"`. Data tersimpan di folder `.pglite`.
->   Jika muncul error `RuntimeError: Aborted()` (biasanya karena dev server dimatikan paksa), jalankan `npm run db:reset`
->   untuk membuat ulang database dev (data dev hilang).
-> - **PostgreSQL lokal / Docker** — mis. `docker run -d --name duitku-pg -e POSTGRES_PASSWORD=duitku -e POSTGRES_DB=duitku -p 5433:5432 postgres:16-alpine`
->   lalu set `DATABASE_URL="postgresql://postgres:duitku@localhost:5433/duitku"`.
->   Aplikasi otomatis memakai driver lokal jika host-nya localhost.
-
-### 3. Generate AUTH_SECRET
-
-```bash
-npx auth secret
-```
-
-atau isi manual `AUTH_SECRET` di `.env.local` dengan string acak.
-
-### 4. (Opsional) Login dengan Google
-
-1. Buka [Google Cloud Console](https://console.cloud.google.com) → APIs & Services → Credentials
-2. Buat **OAuth Client ID** (tipe: Web application)
-3. Authorized redirect URI: `http://localhost:3000/api/auth/callback/google` (dan versi domain produksi saat deploy)
-4. Isi `AUTH_GOOGLE_ID` dan `AUTH_GOOGLE_SECRET` di `.env.local`
-
-Tanpa ini, login email/password tetap berfungsi normal.
-
-### 5. Buat tabel database
+Isi `.env.local` (lihat tabel di bawah), lalu buat tabel dan jalankan server:
 
 ```bash
 npm run db:push
-```
-
-### 6. Jalankan
-
-```bash
 npm run dev
 ```
 
-Buka http://localhost:3000 — daftar akun, tambah dompet, dan mulai mencatat!
+Buka http://localhost:3000, daftar akun, tambah dompet, dan mulai mencatat.
 
-## Deploy ke Vercel (gratis)
+### Variabel lingkungan
 
-1. Push repo ini ke GitHub
-2. Import di [vercel.com](https://vercel.com) → New Project
-3. Isi Environment Variables: `DATABASE_URL`, `AUTH_SECRET`, (opsional) `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`
-4. Deploy. Untuk login Google, tambahkan redirect URI produksi: `https://<domain>/api/auth/callback/google`
+| Variabel | Wajib | Keterangan |
+|---|---|---|
+| `DATABASE_URL` | ya | Connection string database. Lihat pilihan di bawah. |
+| `AUTH_SECRET` | ya | String acak untuk menandatangani sesi. Buat dengan `npx auth secret`. |
+| `AUTH_GOOGLE_ID` | tidak | Client ID OAuth Google. |
+| `AUTH_GOOGLE_SECRET` | tidak | Client secret OAuth Google. |
+
+Tanpa dua variabel Google, login email dan password tetap berfungsi.
+
+### Pilihan database
+
+Aplikasi memilih driver dari isi `DATABASE_URL`:
+
+| Nilai | Driver | Cocok untuk |
+|---|---|---|
+| `postgresql://...neon.tech/...` | Neon serverless | Produksi dan development dengan Neon |
+| `postgresql://...@localhost:5433/...` | node-postgres | Postgres lokal atau Docker |
+| `file:./.pglite` | PGlite | Development tanpa memasang apa pun |
+
+**Neon.** Daftar di [neon.tech](https://neon.tech), buat project, klik Connect, lalu salin connection string ke `DATABASE_URL`.
+
+**PGlite.** Set `DATABASE_URL="file:./.pglite"`. Data tersimpan di folder `.pglite`. Kalau muncul `RuntimeError: Aborted()`, biasanya karena dev server dimatikan paksa. Jalankan `npm run db:reset` untuk membuat ulang database development. Data development akan hilang.
+
+**Docker.** Contoh:
+
+```bash
+docker run -d --name duitku-pg -e POSTGRES_PASSWORD=duitku -e POSTGRES_DB=duitku -p 5433:5432 postgres:16-alpine
+```
+
+lalu set `DATABASE_URL="postgresql://postgres:duitku@localhost:5433/duitku"`.
+
+### Login dengan Google (opsional)
+
+1. Buka [Google Cloud Console](https://console.cloud.google.com), pilih APIs & Services, lalu Credentials.
+2. Buat OAuth Client ID bertipe Web application.
+3. Tambahkan redirect URI `http://localhost:3000/api/auth/callback/google`. Saat deploy, tambahkan juga versi domain produksimu.
+4. Isi `AUTH_GOOGLE_ID` dan `AUTH_GOOGLE_SECRET` di `.env.local`.
+
+## Deploy ke Vercel
+
+1. Push repo ke GitHub.
+2. Di [vercel.com](https://vercel.com), pilih New Project lalu import repo ini.
+3. Isi Environment Variables: `DATABASE_URL`, `AUTH_SECRET`, dan kalau perlu `AUTH_GOOGLE_ID` serta `AUTH_GOOGLE_SECRET`.
+4. Deploy. Untuk login Google, tambahkan redirect URI `https://<domainmu>/api/auth/callback/google`.
+
+Jalankan `npm run db:push` sekali dari komputermu dengan `DATABASE_URL` yang menunjuk ke database produksi, supaya tabelnya ada sebelum aplikasi dipakai.
 
 ## Script
 
@@ -90,6 +111,26 @@ Buka http://localhost:3000 — daftar akun, tambah dompet, dan mulai mencatat!
 |---|---|
 | `npm run dev` | Jalankan development server |
 | `npm run build` | Build produksi |
+| `npm run start` | Jalankan hasil build |
+| `npm run lint` | Periksa kode dengan ESLint |
 | `npm run db:push` | Sinkronkan schema ke database |
-| `npm run db:generate` | Generate file migrasi SQL |
-| `npm run db:studio` | GUI untuk melihat isi database |
+| `npm run db:generate` | Buat file migrasi SQL |
+| `npm run db:studio` | Buka GUI untuk melihat isi database |
+| `npm run db:reset` | Hapus database PGlite lokal lalu buat ulang tabelnya |
+
+## Struktur folder
+
+```
+src/
+  app/          halaman dan route (App Router); (app) untuk pengguna login, guest untuk mode tanpa akun
+  actions/      server action untuk menulis data
+  db/           schema Drizzle dan semua query baca
+  lib/          logika murni: periode gajian, insight, jatah jajan, laju impian, validasi
+  components/   komponen UI bersama
+```
+
+## Catatan untuk yang mengembangkan
+
+Proyek ini memakai Next.js 16, yang punya perubahan dibanding versi lama. Baca panduan di `node_modules/next/dist/docs/` sebelum memakai API yang belum kamu kenal.
+
+Tanggal gajian dibatasi 1 sampai 28 supaya tiap bulan pasti punya tanggal itu. Kunci periode berbentuk `YYYY-MM` dan menunjuk bulan tempat periode dimulai, jadi dengan gajian tanggal 21, kunci `2026-10` berarti 21 Oktober sampai 20 November 2026. Fungsinya ada di `src/lib/period.ts`.
