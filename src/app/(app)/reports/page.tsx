@@ -29,11 +29,13 @@ import { formatDate, formatIDR, todayString } from "@/lib/format";
 import { addDays, countWeekdays } from "@/lib/snack";
 import {
   daysBetweenInclusive,
+  isCustomPeriod,
   periodKeyOf,
   periodLabel,
   periodLength,
   periodNoun,
   periodRange,
+  periodShortLabel,
   shiftPeriodKey,
 } from "@/lib/period";
 import { buildInsights } from "@/lib/insights";
@@ -208,7 +210,7 @@ export default async function ReportsPage({
       ? {
           spent: earlySummary.expense,
           days: EARLY_DAYS,
-          afterPayday: payday > 1,
+          afterPayday: isCustomPeriod(payday),
         }
       : null,
     biggest: biggest
@@ -234,13 +236,13 @@ export default async function ReportsPage({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">
-            {payday > 1 ? "Laporan per Periode" : "Laporan Bulanan"}
+            {isCustomPeriod(payday) ? "Laporan per Periode" : "Laporan Bulanan"}
           </h1>
           <p className="text-sm text-muted-foreground">
             Evaluasi keuangan {label}
           </p>
         </div>
-        <MonthNav month={month} label={payday > 1 ? label : undefined} />
+        <MonthNav month={month} label={isCustomPeriod(payday) ? label : undefined} />
       </div>
 
       {/* Ringkasan */}
@@ -420,12 +422,8 @@ export default async function ReportsPage({
         <CardContent>
           <TrendChart
             data={trend.map((t) =>
-              payday > 1
-                ? {
-                    ...t,
-                    label: periodLabel(t.month, payday)
-                      .split(" sampai ")[0],
-                  }
+              isCustomPeriod(payday)
+                ? { ...t, label: periodShortLabel(t.month, payday) }
                 : t
             )}
           />

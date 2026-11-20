@@ -7,6 +7,7 @@ import {
   getWalletsWithBalances,
 } from "@/db/queries";
 import { todayString } from "@/lib/format";
+import { isCustomPeriod } from "@/lib/period";
 import { addDaysTo, computeGoalPace, type GoalPace } from "@/lib/goal-pace";
 import { GoalsClient } from "./goals-client";
 
@@ -44,7 +45,7 @@ export default async function GoalsPage() {
       goals={goals}
       wallets={wallets}
       paces={paces}
-      paceUnit={payday > 1 ? "gajian" : "bulan"}
+      paceUnit={isCustomPeriod(payday) ? "gajian" : "bulan"}
     />
   );
 }

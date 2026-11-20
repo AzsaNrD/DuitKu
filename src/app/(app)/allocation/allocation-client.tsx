@@ -40,7 +40,12 @@ import {
   type CategoryLimitInput,
 } from "@/lib/zod-schemas";
 import { formatIDR } from "@/lib/format";
-import { periodLabel, periodNoun } from "@/lib/period";
+import {
+  isCustomPeriod,
+  periodLabel,
+  periodNoun,
+  type PaydayPlan,
+} from "@/lib/period";
 import { PaydayButton } from "@/components/payday-settings";
 import { cn } from "@/lib/utils";
 import type {
@@ -66,7 +71,7 @@ export function AllocationClient({
   wallets,
 }: {
   month: string;
-  payday: number;
+  payday: PaydayPlan;
   overview: AllocationOverview;
   plan: AllocationPlan;
   expenseCategories: Category[];
@@ -103,7 +108,7 @@ export function AllocationClient({
         </div>
         {overview.hasPlan && (
           <div className="flex flex-wrap items-center gap-2">
-            <MonthNav month={month} label={payday > 1 ? periodText : undefined} />
+            <MonthNav month={month} label={isCustomPeriod(payday) ? periodText : undefined} />
             <PaydayButton payday={payday} />
             <Button
               variant="outline"

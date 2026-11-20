@@ -14,6 +14,7 @@ import {
 import { computeDailyAllowance, type SnackStatus } from "@/lib/snack";
 import type { SnackAllocationLink } from "@/lib/snack-allocation";
 import { formatIDR } from "@/lib/format";
+import { periodNoun, type PaydayPlan } from "@/lib/period";
 import { cn } from "@/lib/utils";
 
 type Overview = {
@@ -125,7 +126,7 @@ export function SnackCard({
   overview: Overview;
   today: string;
   categories: SnackCategoryOption[];
-  payday: number;
+  payday: PaydayPlan;
   // hasil perbandingan batas jajan dengan jatah pos di alokasi
   allocationLink?: SnackAllocationLink | null;
 }) {
@@ -147,7 +148,7 @@ export function SnackCard({
                 plan={null}
                 label="Atur Jatah Jajan"
                 variant="default"
-                noun={payday > 1 ? "periode" : "bulan"}
+                noun={periodNoun(payday)}
               />
             }
           />

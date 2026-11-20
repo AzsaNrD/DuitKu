@@ -359,6 +359,22 @@ export const userSettings = pgTable("user_settings", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+// Tanggal mulai khusus untuk satu periode, dipakai kalau gaji cair di tanggal
+// yang berbeda dari biasanya (mis. biasanya tanggal 21, bulan ini baru cair
+// tanggal 24). month = kunci periode "YYYY-MM"; startDate harus jatuh di
+// bulan yang sama. Tidak ada baris = pakai tanggal gajian biasa.
+export const paydayOverrides = pgTable(
+  "payday_overrides",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    month: text("month").notNull(),
+    startDate: date("start_date", { mode: "string" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.month] })]
+);
+
 // Jatah jajan: satu batas bulanan per user, dan kategori mana saja yang
 // dihitung sebagai jajan. Dipisah dari tabel categories (sama seperti
 // pemetaan Alokasi) supaya tipe Category yang dipakai guest-store tetap sama.

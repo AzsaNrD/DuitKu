@@ -1,6 +1,7 @@
-// Laju menabung untuk sebuah impian. Tanpa import supaya mudah diuji;
-// semua tanggal berupa string "YYYY-MM-DD".
-//
+// Laju menabung untuk sebuah impian. Hanya bergantung pada fungsi murni di
+// period.ts, jadi mudah diuji; semua tanggal berupa string "YYYY-MM-DD".
+import { periodStart, shiftPeriodKey, type PaydayPlan } from "@/lib/period";
+
 // Dua angka yang dihitung:
 //  1. kebutuhan per gajian supaya tercapai sebelum tanggal target
 //  2. perkiraan kapan tercapai kalau lajunya sama dengan perubahan saldo
@@ -37,23 +38,18 @@ export function addDaysTo(date: string, delta: number): string {
   return new Date(toUtc(date) + delta * 86_400_000).toISOString().slice(0, 10);
 }
 
-// Berapa kali tanggal `payday` muncul dari `from` sampai `to` (keduanya
-// inklusif). Gajian dibatasi 1 sampai 28, jadi tiap bulan pasti punya tanggal itu.
-export function countPaydays(from: string, to: string, payday: number): number {
+// Berapa kali gajian jatuh dari `from` sampai `to` (keduanya inklusif).
+// Bulan yang tanggal cairnya sudah digeser memakai tanggal gesernya; bulan
+// lain memakai tanggal gajian biasa (perkiraan).
+export function countPaydays(from: string, to: string, plan: PaydayPlan): number {
   if (to < from) return 0;
-  const [fy, fm] = from.split("-").map(Number);
-  const [ty, tm] = to.split("-").map(Number);
+  let key = from.slice(0, 7);
+  const lastKey = to.slice(0, 7);
   let count = 0;
-  let y = fy;
-  let m = fm;
-  while (y < ty || (y === ty && m <= tm)) {
-    const day = `${y}-${String(m).padStart(2, "0")}-${String(payday).padStart(2, "0")}`;
+  while (key <= lastKey) {
+    const day = periodStart(key, plan);
     if (day >= from && day <= to) count++;
-    m++;
-    if (m > 12) {
-      m = 1;
-      y++;
-    }
+    key = shiftPeriodKey(key, 1);
   }
   return count;
 }
@@ -63,7 +59,7 @@ export function computeGoalPace(input: {
   saved: number;
   targetDate: string | null;
   today: string;
-  payday: number;
+  payday: PaydayPlan;
   // perubahan bersih saldo dompet dalam `windowDays` hari terakhir;
   // null kalau impian tidak terhubung ke dompet
   windowChange: number | null;

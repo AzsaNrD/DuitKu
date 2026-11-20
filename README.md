@@ -2,7 +2,7 @@
 
 Aplikasi web untuk mencatat keuangan pribadi dalam rupiah. Kamu mencatat uang masuk dan keluar, membagi gaji ke pos-pos, memisahkan jatah jajan, dan melihat ke mana uangmu pergi tiap periode.
 
-DuitKu dibuat untuk orang yang gajiannya tidak jatuh di tanggal 1. Kalau kamu gajian tanggal 21, periodemu berjalan dari 21 sampai 20 bulan berikutnya, dan Dashboard, Laporan, Alokasi, dan Jatah Jajan mengikuti rentang itu.
+DuitKu dibuat untuk orang yang gajiannya tidak jatuh di tanggal 1. Kalau kamu gajian tanggal 21, periodemu berjalan dari 21 sampai 20 bulan berikutnya, dan Dashboard, Laporan, Alokasi, dan Jatah Jajan mengikuti rentang itu. Kalau gaji bulan tertentu cair terlambat, misalnya tanggal 24, kamu bisa menggeser tanggal mulai periode itu saja.
 
 Semuanya jalan di tier gratis: Next.js, Neon Postgres, dan Vercel.
 
@@ -134,3 +134,5 @@ src/
 Proyek ini memakai Next.js 16, yang punya perubahan dibanding versi lama. Baca panduan di `node_modules/next/dist/docs/` sebelum memakai API yang belum kamu kenal.
 
 Tanggal gajian dibatasi 1 sampai 28 supaya tiap bulan pasti punya tanggal itu. Kunci periode berbentuk `YYYY-MM` dan menunjuk bulan tempat periode dimulai, jadi dengan gajian tanggal 21, kunci `2026-10` berarti 21 Oktober sampai 20 November 2026. Fungsinya ada di `src/lib/period.ts`.
+
+Tanggal mulai satu periode bisa digeser lewat tabel `payday_overrides` (kunci periode dan tanggal mulai sebenarnya, yang harus jatuh di bulan yang sama dengan kuncinya). Periode berakhir sehari sebelum periode berikutnya dimulai. Semua fungsi periode menerima `PaydayPlan` (tanggal biasa ditambah daftar geseran), bukan satu angka. Setelah menarik perubahan ini, jalankan `npm run db:push` untuk membuat tabelnya.

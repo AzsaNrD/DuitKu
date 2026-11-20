@@ -12,11 +12,14 @@ import {
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
+  CALENDAR_PLAN,
   daysBetweenInclusive,
   periodKeyOf,
   periodLabel,
   periodNoun,
   periodRange,
+  shiftPeriodKey,
+  type PaydayPlan,
 } from "@/lib/period";
 import { addDaysTo as shiftDate } from "@/lib/goal-pace";
 import { EMPTY_WALLET_USAGE, type WalletUsage } from "@/lib/wallet-usage";
@@ -29,6 +32,7 @@ import {
   categories,
   categoryLimits,
   goals,
+  paydayOverrides,
   recurringRules,
   snackCategories,
   snackPlans,
@@ -104,12 +108,26 @@ const inRange = (r: DateRange) =>
 const inPeriod = (p: string | DateRange) =>
   typeof p === "string" ? eq(monthOf, p) : inRange(p);
 
-// Tanggal gajian pengguna; 1 (bulan kalender) kalau belum diatur
-export async function getPayday(userId: string): Promise<number> {
-  const row = await db.query.userSettings.findFirst({
-    where: eq(userSettings.userId, userId),
-  });
-  return row?.paydayDay ?? 1;
+// Rencana periode pengguna: tanggal gajian biasa (1 = bulan kalender kalau
+// belum diatur) beserta tanggal mulai khusus untuk bulan yang gajiannya
+// bergeser
+export async function getPayday(userId: string): Promise<PaydayPlan> {
+  const [row, overrideRows] = await Promise.all([
+    db.query.userSettings.findFirst({
+      where: eq(userSettings.userId, userId),
+    }),
+    db
+      .select({
+        month: paydayOverrides.month,
+        startDate: paydayOverrides.startDate,
+      })
+      .from(paydayOverrides)
+      .where(eq(paydayOverrides.userId, userId)),
+  ]);
+  return {
+    day: row?.paydayDay ?? 1,
+    overrides: Object.fromEntries(overrideRows.map((r) => [r.month, r.startDate])),
+  };
 }
 
 // Total pemasukan & pengeluaran satu bulan kalender atau satu periode gajian
@@ -296,31 +314,24 @@ export type RecurringRow = Awaited<
 // Tren pemasukan/pengeluaran per bulan, `months` bulan terakhir
 // yang berakhir di `endMonth` (format "YYYY-MM")
 // `endMonth` dan `month` di hasil adalah kunci periode ("YYYY-MM" = bulan
-// tempat periode dimulai). Dengan payday > 1 transaksi dikelompokkan per
-// periode gajian: tanggal digeser mundur (payday - 1) hari, jadi 21 Nov
-// masuk "2026-11" dan 20 Nov masih "2026-10".
+// tempat periode dimulai). Batas tiap periode dihitung di sini (karena bisa
+// bergeser per bulan), lalu transaksi dijumlah per hari di database dan
+// dimasukkan ke periodenya di kode. Cara ini menghindari ekspresi
+// GROUP BY yang berbeda dari SELECT, dan jumlah barisnya kecil.
 export async function getMonthlyTrend(
   userId: string,
   endMonth: string,
   months = 6,
-  payday = 1
+  payday: PaydayPlan = CALENDAR_PLAN
 ) {
-  // Angka pergeserannya ditulis langsung ke SQL, bukan sebagai parameter:
-  // dengan parameter, SELECT dan GROUP BY menjadi dua ekspresi berbeda
-  // ($1 dan $7) dan Postgres menolak query-nya. Aman karena hanya bilangan
-  // bulat hasil Math.trunc.
-  const shiftDays = Math.max(0, Math.trunc(payday) - 1);
-  const keyOf =
-    shiftDays === 0
-      ? monthOf
-      : sql<string>`to_char(${transactions.date} - ${sql.raw(String(shiftDays))}, 'YYYY-MM')`;
-  const [ey, em] = endMonth.split("-").map(Number);
-  const startTotal = ey * 12 + (em - 1) - (months - 1);
-  const startMonth = `${Math.floor(startTotal / 12)}-${String((startTotal % 12) + 1).padStart(2, "0")}`;
+  const keys = Array.from({ length: months }, (_, i) =>
+    shiftPeriodKey(endMonth, i - (months - 1))
+  );
+  const ranges = keys.map((key) => ({ key, ...periodRange(key, payday) }));
 
   const rows = await db
     .select({
-      month: keyOf,
+      date: transactions.date,
       income: sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else 0 end), 0)`,
       expense: sql<string>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.amount} else 0 end), 0)`,
     })
@@ -328,26 +339,23 @@ export async function getMonthlyTrend(
     .where(
       and(
         eq(transactions.userId, userId),
-        gte(keyOf, startMonth),
-        lte(keyOf, endMonth)
+        gte(transactions.date, ranges[0].start),
+        lte(transactions.date, ranges[ranges.length - 1].end)
       )
     )
-    .groupBy(keyOf)
-    .orderBy(keyOf);
+    .groupBy(transactions.date);
 
-  const byMonth = new Map(rows.map((r) => [r.month, r]));
-  const result: { month: string; income: number; expense: number }[] = [];
-  for (let i = 0; i < months; i++) {
-    const total = startTotal + i;
-    const key = `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`;
-    const row = byMonth.get(key);
-    result.push({
-      month: key,
-      income: Number(row?.income ?? 0),
-      expense: Number(row?.expense ?? 0),
-    });
-  }
-  return result;
+  return ranges.map((r) => {
+    let income = 0;
+    let expense = 0;
+    for (const row of rows) {
+      if (row.date >= r.start && row.date <= r.end) {
+        income += Number(row.income);
+        expense += Number(row.expense);
+      }
+    }
+    return { month: r.key, income, expense };
+  });
 }
 
 export type GoalWithProgress = Goal & {
@@ -446,7 +454,7 @@ export async function getSnackSpending(
 export async function getSnackOverview(
   userId: string,
   today: string,
-  payday = 1,
+  payday: PaydayPlan = CALENDAR_PLAN,
   // rencana yang sudah diambil pemanggil (null = memang belum ada), supaya
   // tidak diambil lagi dan bisa berjalan bersamaan dengan pengambilan payday
   preloadedPlan?: SnackPlan | null
@@ -581,8 +589,8 @@ export async function getAllocationOverview(
   // kunci periode: bulan tempat periode dimulai ("YYYY-MM")
   month: string,
   plan?: AllocationPlan,
-  // tanggal gajian; 1 = bulan kalender
-  payday = 1
+  // rencana periode (tanggal gajian dan bulan yang bergeser)
+  payday: PaydayPlan = CALENDAR_PLAN
 ): Promise<AllocationOverview> {
   const p = plan ?? (await getAllocationPlan(userId));
   const range = periodRange(month, payday);

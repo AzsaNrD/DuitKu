@@ -41,7 +41,13 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { ExpensePieChart } from "@/components/expense-pie-chart";
 import { SnackCard } from "@/components/snack-card";
-import { periodKeyOf, periodLabel, periodNoun, periodRange } from "@/lib/period";
+import {
+  isCustomPeriod,
+  periodKeyOf,
+  periodLabel,
+  periodNoun,
+  periodRange,
+} from "@/lib/period";
 import { WalletSummaryList } from "@/components/wallet-summary-list";
 import {
   AllocationBucketRow,
@@ -247,7 +253,7 @@ export default async function DashboardPage() {
               <CardTitle className="text-base">
                 Alokasi {periodWord === "bulan" ? "Bulan Ini" : "Periode Ini"}
               </CardTitle>
-              {payday > 1 && (
+              {isCustomPeriod(payday) && (
                 <p className="text-xs text-muted-foreground">{periodText}</p>
               )}
             </div>
