@@ -1,7 +1,9 @@
 import {
+  Banknote,
   CalendarDays,
   ChartPie,
   Gauge,
+  Receipt,
   Repeat,
   TrendingDown,
   TrendingUp,
@@ -17,6 +19,8 @@ const ICONS: Record<InsightIcon, LucideIcon> = {
   calendar: CalendarDays,
   repeat: Repeat,
   projection: Gauge,
+  payday: Banknote,
+  receipt: Receipt,
 };
 
 // Warna hanya penguat. Maknanya tetap terbaca lewat bentuk ikon, isi

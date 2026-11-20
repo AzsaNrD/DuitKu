@@ -54,7 +54,8 @@ import {
   type GoalInput,
   type GoalSavingInput,
 } from "@/lib/zod-schemas";
-import { formatIDR, formatDate } from "@/lib/format";
+import { formatIDR, formatDate, formatMonth } from "@/lib/format";
+import type { GoalPace } from "@/lib/goal-pace";
 import { cn } from "@/lib/utils";
 import type { GoalWithProgress } from "@/db/queries";
 import type { Wallet } from "@/db/schema";
@@ -64,9 +65,15 @@ const MANUAL = "__manual__";
 export function GoalsClient({
   goals,
   wallets,
+  paces,
+  paceUnit,
 }: {
   goals: GoalWithProgress[];
   wallets: Wallet[];
+  // panduan laju per impian (id impian -> hasil hitung di server)
+  paces: Record<string, GoalPace>;
+  // satuan kebutuhan: "gajian" kalau tanggal gajian diatur, selain itu "bulan"
+  paceUnit: "gajian" | "bulan";
 }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<GoalWithProgress | null>(null);
@@ -212,6 +219,9 @@ export function GoalsClient({
                       </span>
                     </p>
                   )}
+                  {!done && paces[goal.id] && (
+                    <PaceNote pace={paces[goal.id]} unit={paceUnit} />
+                  )}
                   {done ? (
                     <Badge className="bg-income text-background">
                       🎉 Tercapai! Saatnya beli
@@ -271,6 +281,98 @@ export function GoalsClient({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Panduan laju: berapa yang perlu disisihkan supaya sampai tanggal target, dan
+// kapan tercapai kalau lajunya sama dengan 60 hari terakhir.
+function PaceNote({ pace, unit }: { pace: GoalPace; unit: "gajian" | "bulan" }) {
+  const lines: { key: string; tone: "good" | "warn" | "info"; node: React.ReactNode }[] = [];
+
+  if (pace.targetPassed) {
+    lines.push({
+      key: "passed",
+      tone: "warn",
+      node: "Tanggal target sudah lewat. Ubah tanggalnya kalau masih ingin dikejar.",
+    });
+  } else if (pace.needPerPayday !== null) {
+    lines.push({
+      key: "need",
+      tone: "info",
+      node:
+        pace.paydaysLeft && pace.paydaysLeft >= 1 ? (
+          <>
+            Perlu{" "}
+            <span className="money font-medium text-foreground">
+              {formatIDR(pace.needPerPayday)}
+            </span>{" "}
+            per {unit}, {pace.paydaysLeft} {unit} lagi sampai tanggal target.
+          </>
+        ) : (
+          <>
+            Perlu{" "}
+            <span className="money font-medium text-foreground">
+              {formatIDR(pace.needPerPayday)}
+            </span>{" "}
+            sebelum tanggal target, tidak ada {unit} lagi di antaranya.
+          </>
+        ),
+    });
+  }
+
+  if (pace.perMonth !== null) {
+    if (pace.perMonth <= 0) {
+      lines.push({
+        key: "rate",
+        tone: "warn",
+        node: `Dalam ${pace.windowDays} hari terakhir saldo dompet ini belum bertambah.`,
+      });
+    } else if (pace.projectedDate) {
+      lines.push({
+        key: "rate",
+        tone: pace.onTrack === null ? "info" : pace.onTrack ? "good" : "warn",
+        node: (
+          <>
+            Dengan laju {pace.windowDays} hari terakhir (sekitar{" "}
+            <span className="money font-medium text-foreground">
+              {formatIDR(pace.perMonth)}
+            </span>{" "}
+            per bulan), tercapai sekitar{" "}
+            <span className="font-medium text-foreground">
+              {formatMonth(pace.projectedDate.slice(0, 7))}
+            </span>
+            {pace.onTrack === true && ", sesuai target."}
+            {pace.onTrack === false && ", lebih lambat dari target."}
+            {pace.onTrack === null && "."}
+          </>
+        ),
+      });
+    } else {
+      lines.push({
+        key: "rate",
+        tone: "warn",
+        node: "Dengan laju sekarang butuh lebih dari 5 tahun.",
+      });
+    }
+  }
+
+  if (lines.length === 0) return null;
+  return (
+    <ul className="space-y-1.5 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
+      {lines.map((l) => (
+        <li
+          key={l.key}
+          className={cn(
+            "border-l-2 pl-2",
+            l.tone === "good" && "border-income",
+            l.tone === "warn" && "border-warning",
+            l.tone === "info" && "border-border"
+          )}
+        >
+          {l.node}
+        </li>
+      ))}
+    </ul>
   );
 }
 

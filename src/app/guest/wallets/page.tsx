@@ -5,8 +5,11 @@ import { WalletsClient, type WalletGuestActions } from "@/app/(app)/wallets/wall
 import {
   adjustGuestWalletBalance,
   computeWalletsWithBalances,
+  computeWalletUsage,
+  createGuestTransaction,
   createGuestWallet,
   deleteGuestWallet,
+  updateGuestTransaction,
   updateGuestWallet,
   useGuestData,
 } from "@/lib/guest-store";
@@ -16,11 +19,16 @@ const GUEST_ACTIONS: WalletGuestActions = {
   updateWallet: updateGuestWallet,
   deleteWallet: deleteGuestWallet,
   adjustWalletBalance: adjustGuestWalletBalance,
+  transactions: {
+    createTransaction: createGuestTransaction,
+    updateTransaction: updateGuestTransaction,
+  },
 };
 
 export default function GuestWalletsPage() {
   const data = useGuestData();
   const wallets = useMemo(() => computeWalletsWithBalances(data), [data]);
+  const usage = useMemo(() => computeWalletUsage(data), [data]);
 
-  return <WalletsClient wallets={wallets} guest={GUEST_ACTIONS} />;
+  return <WalletsClient wallets={wallets} usage={usage} guest={GUEST_ACTIONS} />;
 }

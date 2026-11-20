@@ -4,9 +4,20 @@ import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { actionToast, type ActionResult } from "@/lib/action-toast";
-import { Pencil, Plus, Scale, Trash2, Wallet as WalletIcon } from "lucide-react";
+import {
+  ArrowRightLeft,
+  Pencil,
+  Plus,
+  Scale,
+  Trash2,
+  Wallet as WalletIcon,
+} from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { AdjustBalanceDialog } from "@/components/adjust-balance-dialog";
+import {
+  TransactionFormDialog,
+  type TransactionGuestActions,
+} from "@/components/transaction-form-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,6 +53,11 @@ import {
 } from "@/lib/zod-schemas";
 import { formatIDR } from "@/lib/format";
 import {
+  EMPTY_WALLET_USAGE,
+  walletDeleteBlockers,
+  type WalletUsage,
+} from "@/lib/wallet-usage";
+import {
   WALLET_TYPE_ICONS,
   WALLET_TYPE_LABELS,
   WALLET_TYPE_ORDER,
@@ -58,6 +74,7 @@ export type WalletGuestActions = {
     id: string,
     input: AdjustBalanceInput
   ) => Promise<ActionResult>;
+  transactions: TransactionGuestActions;
 };
 
 const TYPE_ITEMS = [
@@ -68,18 +85,28 @@ const TYPE_ITEMS = [
 
 export function WalletsClient({
   wallets,
+  usage,
   guest,
 }: {
   wallets: WalletWithBalance[];
+  // pemakaian tiap dompet oleh data lain, untuk dialog hapus
+  usage: Record<string, WalletUsage>;
   guest?: WalletGuestActions;
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<WalletWithBalance | null>(null);
   const [deleting, setDeleting] = useState<WalletWithBalance | null>(null);
   const [adjusting, setAdjusting] = useState<WalletWithBalance | null>(null);
+  const [transferFrom, setTransferFrom] = useState<WalletWithBalance | null>(
+    null
+  );
 
   const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0);
   const deleteWalletFn = guest?.deleteWallet ?? deleteWallet;
+  const deletingUsage = deleting
+    ? (usage[deleting.id] ?? EMPTY_WALLET_USAGE)
+    : EMPTY_WALLET_USAGE;
+  const deleteBlockers = walletDeleteBlockers(deletingUsage);
 
   function openCreate() {
     setEditing(null);
@@ -194,10 +221,20 @@ export function WalletsClient({
                             </Button>
                           </div>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
                           <p className="money text-2xl font-bold">
                             {formatIDR(wallet.balance)}
                           </p>
+                          {wallets.length > 1 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setTransferFrom(wallet)}
+                              aria-label={`Transfer dari ${wallet.name}`}
+                            >
+                              <ArrowRightLeft /> Transfer
+                            </Button>
+                          )}
                         </CardContent>
                       </Card>
                     </TiltCard>
@@ -218,6 +255,17 @@ export function WalletsClient({
         />
       )}
 
+      {transferFrom && (
+        <TransactionFormDialog
+          open={!!transferFrom}
+          onOpenChange={(o) => !o && setTransferFrom(null)}
+          wallets={wallets}
+          categories={[]}
+          preset={{ type: "transfer", walletId: transferFrom.id }}
+          guest={guest?.transactions}
+        />
+      )}
+
       {adjusting && (
         <AdjustBalanceDialog
           open={!!adjusting}
@@ -231,19 +279,45 @@ export function WalletsClient({
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hapus dompet?</DialogTitle>
+            <DialogTitle>
+              {deleteBlockers.length > 0
+                ? "Dompet belum bisa dihapus"
+                : "Hapus dompet?"}
+            </DialogTitle>
             <DialogDescription>
-              Dompet &quot;{deleting?.name}&quot; beserta{" "}
-              <strong>semua transaksinya</strong> akan dihapus permanen.
+              {deleteBlockers.length > 0 ? (
+                <>
+                  Dompet &quot;{deleting?.name}&quot; masih berhubungan dengan
+                  data lain. Hapus dompet ini sekarang akan mengubah saldo
+                  dompet lain.
+                </>
+              ) : deletingUsage.transactions > 0 ? (
+                <>
+                  Dompet &quot;{deleting?.name}&quot; beserta{" "}
+                  <strong>{deletingUsage.transactions} transaksinya</strong>{" "}
+                  akan dihapus permanen.
+                </>
+              ) : (
+                <>Dompet &quot;{deleting?.name}&quot; akan dihapus permanen.</>
+              )}
             </DialogDescription>
           </DialogHeader>
+          {deleteBlockers.length > 0 && (
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
+              {deleteBlockers.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
-              Batal
+              {deleteBlockers.length > 0 ? "Mengerti" : "Batal"}
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Hapus
-            </Button>
+            {deleteBlockers.length === 0 && (
+              <Button variant="destructive" onClick={handleDelete}>
+                Hapus
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

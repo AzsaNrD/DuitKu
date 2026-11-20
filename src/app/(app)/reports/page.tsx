@@ -3,6 +3,8 @@ import Link from "next/link";
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Hourglass,
+  Landmark,
   Lightbulb,
   PiggyBank,
   TrendingDown,
@@ -10,16 +12,20 @@ import {
 } from "lucide-react";
 import { requireUserId } from "@/lib/require-user";
 import {
+  getAverageDailyExpense,
+  getBiggestExpense,
   getExpenseByCategory,
   getIncomeByCategory,
   getMonthlyTrend,
   getMonthSummary,
   getPayday,
+  getSavingsTransferred,
   getSnackPlan,
   getSnackSpending,
   getSpendingByWeekday,
+  getWalletsWithBalances,
 } from "@/db/queries";
-import { formatIDR, todayString } from "@/lib/format";
+import { formatDate, formatIDR, todayString } from "@/lib/format";
 import { addDays, countWeekdays } from "@/lib/snack";
 import {
   daysBetweenInclusive,
@@ -96,6 +102,11 @@ export default async function ReportsPage({
   const Noun = noun === "bulan" ? "Bulan" : "Periode";
   const label = periodLabel(month, payday);
 
+  const isCurrentMonth = month === currentKey;
+  // periode yang belum terjadi tidak punya kebiasaan untuk dianalisis; tanpa
+  // pengecualian ini jendela 91 hari akan menyedot transaksi periode berjalan
+  const isFutureMonth = month > currentKey;
+
   const [
     summary,
     prevSummary,
@@ -104,6 +115,9 @@ export default async function ReportsPage({
     incomeByCategory,
     trend,
     snackPlan,
+    savedToSavings,
+    wallets,
+    dailyExpense,
   ] = await Promise.all([
     getMonthSummary(userId, range),
     getMonthSummary(userId, prevRange),
@@ -112,7 +126,21 @@ export default async function ReportsPage({
     getIncomeByCategory(userId, range),
     getMonthlyTrend(userId, month, 6, payday),
     getSnackPlan(userId),
+    // uang yang benar-benar dipindah ke dompet tabungan (null = belum ada
+    // dompet tabungan yang terhubung di Alokasi)
+    isFutureMonth ? null : getSavingsTransferred(userId, range),
+    // ketahanan uang hanya bermakna untuk "sekarang", bukan periode lampau
+    isCurrentMonth ? getWalletsWithBalances(userId) : null,
+    isCurrentMonth ? getAverageDailyExpense(userId, today) : null,
   ]);
+
+  const totalBalance = wallets
+    ? wallets.reduce((sum, w) => sum + w.balance, 0)
+    : 0;
+  const runwayDays =
+    dailyExpense && totalBalance > 0
+      ? Math.floor(totalBalance / dailyExpense.perDay)
+      : null;
 
   const net = summary.income - summary.expense;
   const savingRate =
@@ -121,16 +149,14 @@ export default async function ReportsPage({
   // Insight kebiasaan. Pola per hari memakai 91 hari (13 minggu) yang
   // berakhir hari ini, atau akhir periode untuk periode yang sudah lewat,
   // supaya tiap hari dalam seminggu muncul tepat 13 kali.
-  const isCurrentMonth = month === currentKey;
-  // periode yang belum terjadi tidak punya kebiasaan untuk dianalisis; tanpa
-  // pengecualian ini jendela 91 hari akan menyedot transaksi periode berjalan
-  const isFutureMonth = month > currentKey;
   const monthDays = periodLength(month, payday);
   const windowEnd = isCurrentMonth ? today : range.end;
   const windowStart = addDays(windowEnd, -90);
 
-  const [weekdayRows, snackSpending] = isFutureMonth
-    ? [[], null]
+  const EARLY_DAYS = 7;
+  const earlyEnd = addDays(range.start, EARLY_DAYS - 1);
+  const [weekdayRows, snackSpending, earlySummary, biggest] = isFutureMonth
+    ? [[], null, null, null]
     : await Promise.all([
         getSpendingByWeekday(
           userId,
@@ -141,6 +167,8 @@ export default async function ReportsPage({
         snackPlan
           ? getSnackSpending(userId, range, today, snackPlan.categoryIds)
           : null,
+        getMonthSummary(userId, { start: range.start, end: earlyEnd }),
+        getBiggestExpense(userId, range),
       ]);
   const occurrences = countWeekdays(windowStart, windowEnd);
   const totalsByDow = new Map(weekdayRows.map((r) => [r.dow, r.total]));
@@ -176,6 +204,21 @@ export default async function ReportsPage({
         occurrences: occ,
       })),
     },
+    early: earlySummary
+      ? {
+          spent: earlySummary.expense,
+          days: EARLY_DAYS,
+          afterPayday: payday > 1,
+        }
+      : null,
+    biggest: biggest
+      ? {
+          amount: biggest.amount,
+          categoryName: biggest.categoryName,
+          dateLabel: formatDate(biggest.date),
+          note: biggest.note,
+        }
+      : null,
     snack:
       snackPlan && snackSpending
         ? {
@@ -265,6 +308,73 @@ export default async function ReportsPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Uang yang benar-benar ditabung dan ketahanan uang */}
+      {(savedToSavings !== null || runwayDays !== null) && (
+        <div
+          className={`grid gap-4 ${savedToSavings !== null && runwayDays !== null ? "sm:grid-cols-2" : ""}`}
+        >
+          {savedToSavings !== null && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Landmark className="h-4 w-4" /> Ditabung ke dompet tabungan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <p
+                  className={`money text-2xl font-bold ${savedToSavings > 0 ? "text-income" : savedToSavings < 0 ? "text-expense" : ""}`}
+                >
+                  {savedToSavings > 0 ? "+" : ""}
+                  {formatIDR(savedToSavings)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {savedToSavings > 0
+                    ? summary.income > 0
+                      ? `${Math.round((savedToSavings / summary.income) * 100)}% dari pemasukan.`
+                      : "Dipindah ke dompet tabungan."
+                    : savedToSavings < 0
+                      ? "Lebih banyak ditarik dari dompet tabungan daripada ditambah."
+                      : `Belum ada uang dipindah ke dompet tabungan di ${noun} ini.`}{" "}
+                  Beda dengan Tabungan Bersih: ini uang yang benar-benar
+                  dipindah.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {runwayDays !== null && dailyExpense && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Hourglass className="h-4 w-4" /> Cukup sampai kapan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <p className="text-2xl font-bold">
+                  {runwayDays > 365
+                    ? "Lebih dari setahun"
+                    : `${runwayDays} hari`}
+                </p>
+                {runwayDays <= 365 && (
+                  <p className="text-xs text-muted-foreground">
+                    Sekitar sampai {formatDate(addDays(today, runwayDays))}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Total saldo semua dompet{" "}
+                  <span className="money">{formatIDR(totalBalance)}</span>{" "}
+                  dibagi rata-rata pengeluaran{" "}
+                  <span className="money">
+                    {formatIDR(Math.round(dailyExpense.perDay))}
+                  </span>{" "}
+                  per hari ({dailyExpense.days} hari terakhir), tanpa
+                  pemasukan baru.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Insight kebiasaan: dihitung dari transaksi yang tercatat */}
       <Card>

@@ -52,12 +52,21 @@ export type EditableTransaction = {
   note: string | null;
 };
 
+// Isian awal untuk transaksi baru (bukan edit), mis. tombol Transfer di
+// kartu dompet yang langsung memilih dompet asalnya
+export type TransactionPreset = {
+  type?: Exclude<TransactionType, "adjustment">;
+  walletId?: string;
+  transferToWalletId?: string;
+};
+
 export function TransactionFormDialog({
   open,
   onOpenChange,
   wallets,
   categories,
   editing,
+  preset,
   guest,
 }: {
   open: boolean;
@@ -65,6 +74,7 @@ export function TransactionFormDialog({
   wallets: Pick<Wallet, "id" | "name">[];
   categories: Pick<Category, "id" | "name" | "type">[];
   editing?: EditableTransaction | null;
+  preset?: TransactionPreset;
   guest?: TransactionGuestActions;
 }) {
   const {
@@ -86,11 +96,11 @@ export function TransactionFormDialog({
           note: editing.note ?? "",
         }
       : {
-          type: "expense",
+          type: preset?.type ?? "expense",
           amount: undefined,
-          walletId: wallets[0]?.id ?? "",
+          walletId: preset?.walletId ?? wallets[0]?.id ?? "",
           categoryId: undefined,
-          transferToWalletId: undefined,
+          transferToWalletId: preset?.transferToWalletId,
           date: todayString(),
           note: "",
         },
@@ -130,7 +140,11 @@ export function TransactionFormDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {editing ? "Edit Transaksi" : "Catat Transaksi"}
+            {editing
+              ? "Edit Transaksi"
+              : preset?.type === "transfer"
+                ? "Transfer Antar Dompet"
+                : "Catat Transaksi"}
           </DialogTitle>
           <DialogDescription>
             Catat uang masuk, keluar, atau transfer antar dompet.

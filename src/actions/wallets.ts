@@ -5,6 +5,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { wallets } from "@/db/schema";
 import { requireUserId } from "@/lib/require-user";
+import { getWalletUsage } from "@/db/queries";
+import { walletDeleteBlockedMessage } from "@/lib/wallet-usage";
 import { walletSchema, type WalletInput } from "@/lib/zod-schemas";
 
 const PATHS = ["/wallets", "/dashboard", "/transactions", "/reports", "/allocation", "/goals"];
@@ -53,7 +55,14 @@ export async function updateWallet(id: string, input: WalletInput) {
 
 export async function deleteWallet(id: string) {
   const userId = await requireUserId();
-  // transaksi pada dompet ini ikut terhapus (cascade)
+  // Menghapus dompet ikut menghapus transfer dari dompet lain ke dompet ini
+  // (cascade), yang mengubah saldo dompet lain. Dompet yang masih
+  // berhubungan dengan data lain ditolak, bukan dihapus diam-diam.
+  const usage = (await getWalletUsage(userId))[id];
+  const blocked = usage ? walletDeleteBlockedMessage(usage) : null;
+  if (blocked) return { error: blocked };
+
+  // transaksi biasa pada dompet ini ikut terhapus (cascade)
   await db
     .delete(wallets)
     .where(and(eq(wallets.id, id), eq(wallets.userId, userId)));

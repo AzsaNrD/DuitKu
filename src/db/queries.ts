@@ -12,11 +12,14 @@ import {
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
+  daysBetweenInclusive,
   periodKeyOf,
   periodLabel,
   periodNoun,
   periodRange,
 } from "@/lib/period";
+import { addDaysTo as shiftDate } from "@/lib/goal-pace";
+import { EMPTY_WALLET_USAGE, type WalletUsage } from "@/lib/wallet-usage";
 import {
   allocationBuckets,
   allocationCategoryLinks,
@@ -741,5 +744,231 @@ export async function getAllocationOverview(
       total: unmappedItems.reduce((s, i) => s + i.total, 0),
       items: unmappedItems,
     },
+  };
+}
+
+// ---------- Dompet: pemakaian oleh data lain ----------
+
+// Jumlah data yang bergantung pada tiap dompet, untuk memutuskan apakah
+// dompet boleh dihapus (lihat src/lib/wallet-usage.ts).
+export async function getWalletUsage(
+  userId: string
+): Promise<Record<string, WalletUsage>> {
+  const [ownRows, incomingRows, goalRows, bucketRows, recurringRows] =
+    await Promise.all([
+      db
+        .select({
+          walletId: transactions.walletId,
+          plain: sql<string>`sum(case when ${transactions.type} <> 'transfer' then 1 else 0 end)`,
+          outgoing: sql<string>`sum(case when ${transactions.type} = 'transfer' then 1 else 0 end)`,
+        })
+        .from(transactions)
+        .where(eq(transactions.userId, userId))
+        .groupBy(transactions.walletId),
+      db
+        .select({
+          walletId: transactions.transferToWalletId,
+          total: sql<string>`count(*)`,
+        })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.type, "transfer")
+          )
+        )
+        .groupBy(transactions.transferToWalletId),
+      db
+        .select({ walletId: goals.walletId })
+        .from(goals)
+        .where(eq(goals.userId, userId)),
+      db
+        .select({ walletId: allocationWalletLinks.walletId })
+        .from(allocationWalletLinks)
+        .where(eq(allocationWalletLinks.userId, userId)),
+      db
+        .select({
+          walletId: recurringRules.walletId,
+          transferToWalletId: recurringRules.transferToWalletId,
+        })
+        .from(recurringRules)
+        .where(eq(recurringRules.userId, userId)),
+    ]);
+
+  const usage: Record<string, WalletUsage> = {};
+  const of = (id: string) => (usage[id] ??= { ...EMPTY_WALLET_USAGE });
+
+  for (const r of ownRows) {
+    const u = of(r.walletId);
+    u.transactions += Number(r.plain);
+    u.transfers += Number(r.outgoing);
+  }
+  for (const r of incomingRows) {
+    if (r.walletId) of(r.walletId).transfers += Number(r.total);
+  }
+  for (const r of goalRows) {
+    if (r.walletId) of(r.walletId).goals += 1;
+  }
+  for (const r of bucketRows) of(r.walletId).buckets += 1;
+  for (const r of recurringRows) {
+    of(r.walletId).recurring += 1;
+    if (r.transferToWalletId) of(r.transferToWalletId).recurring += 1;
+  }
+  return usage;
+}
+
+// ---------- Tabungan & ketahanan uang ----------
+
+// Uang yang dipindahkan ke dompet tabungan (dompet yang terhubung ke pos
+// bertipe tabungan di Alokasi) pada satu rentang tanggal, dihitung bersih:
+// transfer keluar dari dompet tabungan mengurangi. null kalau belum ada
+// dompet tabungan yang terhubung.
+export async function getSavingsTransferred(
+  userId: string,
+  range: DateRange
+): Promise<number | null> {
+  const savingsRows = await db
+    .select({ walletId: allocationWalletLinks.walletId })
+    .from(allocationWalletLinks)
+    .innerJoin(
+      allocationBuckets,
+      eq(allocationWalletLinks.bucketId, allocationBuckets.id)
+    )
+    .where(
+      and(
+        eq(allocationWalletLinks.userId, userId),
+        eq(allocationBuckets.kind, "savings")
+      )
+    );
+  if (savingsRows.length === 0) return null;
+  const savings = new Set(savingsRows.map((r) => r.walletId));
+
+  const rows = await db
+    .select({
+      walletId: transactions.walletId,
+      toWalletId: transactions.transferToWalletId,
+      amount: transactions.amount,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        eq(transactions.type, "transfer"),
+        inRange(range)
+      )
+    );
+
+  let net = 0;
+  for (const t of rows) {
+    const fromSavings = savings.has(t.walletId);
+    const toSavings = !!t.toWalletId && savings.has(t.toWalletId);
+    if (fromSavings === toSavings) continue;
+    net += toSavings ? Number(t.amount) : -Number(t.amount);
+  }
+  return net;
+}
+
+// Rata-rata pengeluaran harian dari `windowDays` hari terakhir (sampai
+// `today`). Kalau catatan pengeluaran tertua lebih baru dari awal jendela,
+// pembaginya hanya sejak catatan itu, supaya pengguna baru tidak terlihat
+// sangat hemat. null kalau tidak ada pengeluaran sama sekali.
+export async function getAverageDailyExpense(
+  userId: string,
+  today: string,
+  windowDays = 90
+): Promise<{ perDay: number; days: number } | null> {
+  const start = shiftDate(today, -(windowDays - 1));
+  const [row] = await db
+    .select({
+      total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
+      first: sql<string | null>`min(${transactions.date})::text`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        eq(transactions.type, "expense"),
+        gte(transactions.date, start),
+        lte(transactions.date, today)
+      )
+    );
+  const total = Number(row.total);
+  if (total <= 0 || !row.first) return null;
+  const days = Math.min(windowDays, daysBetweenInclusive(row.first, today));
+  return { perDay: total / Math.max(1, days), days };
+}
+
+// Perubahan bersih saldo tiap dompet sejak tanggal `from` (inklusif), dipakai
+// untuk memperkirakan laju menabung impian. Rumusnya sama dengan saldo dompet.
+export async function getWalletNetChange(
+  userId: string,
+  from: string
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+
+  const [ownRows, incomingRows] = await Promise.all([
+    db
+      .select({
+        walletId: transactions.walletId,
+        delta: sql<string>`sum(case when ${transactions.type} in ('income', 'adjustment') then ${transactions.amount} else -${transactions.amount} end)`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          gte(transactions.date, from)
+        )
+      )
+      .groupBy(transactions.walletId),
+    db
+      .select({
+        walletId: transactions.transferToWalletId,
+        delta: sql<string>`sum(${transactions.amount})`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.type, "transfer"),
+          gte(transactions.date, from)
+        )
+      )
+      .groupBy(transactions.transferToWalletId),
+  ]);
+
+  for (const r of ownRows) result.set(r.walletId, Number(r.delta));
+  for (const r of incomingRows) {
+    if (!r.walletId) continue;
+    result.set(r.walletId, (result.get(r.walletId) ?? 0) + Number(r.delta));
+  }
+  return result;
+}
+
+// Pengeluaran tunggal terbesar dalam satu rentang tanggal
+export async function getBiggestExpense(userId: string, range: DateRange) {
+  const [row] = await db
+    .select({
+      amount: transactions.amount,
+      date: transactions.date,
+      note: transactions.note,
+      categoryName: categories.name,
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        eq(transactions.type, "expense"),
+        inRange(range)
+      )
+    )
+    .orderBy(desc(transactions.amount))
+    .limit(1);
+  if (!row) return null;
+  return {
+    amount: Number(row.amount),
+    date: row.date,
+    note: row.note,
+    categoryName: row.categoryName ?? "Tanpa Kategori",
   };
 }

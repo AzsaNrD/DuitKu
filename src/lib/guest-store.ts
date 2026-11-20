@@ -25,6 +25,11 @@ import type { ActionResult } from "@/lib/action-toast";
 import { DEFAULT_CATEGORIES } from "@/lib/default-categories";
 import { todayString } from "@/lib/format";
 import {
+  EMPTY_WALLET_USAGE,
+  walletDeleteBlockedMessage,
+  type WalletUsage,
+} from "@/lib/wallet-usage";
+import {
   adjustBalanceSchema,
   categorySchema,
   guestImportSchema,
@@ -225,8 +230,27 @@ export async function updateGuestWallet(
   return { success: true };
 }
 
+// Pemakaian tiap dompet (mode tanpa akun tidak punya impian, Alokasi, atau
+// jadwal berulang, jadi hanya transaksi dan transfer yang dihitung)
+export function computeWalletUsage(data: GuestData): Record<string, WalletUsage> {
+  const usage: Record<string, WalletUsage> = {};
+  const of = (id: string) => (usage[id] ??= { ...EMPTY_WALLET_USAGE });
+  for (const t of data.transactions) {
+    if (t.type === "transfer") {
+      of(t.walletId).transfers += 1;
+      if (t.transferToWalletId) of(t.transferToWalletId).transfers += 1;
+    } else {
+      of(t.walletId).transactions += 1;
+    }
+  }
+  return usage;
+}
+
 export async function deleteGuestWallet(id: string): Promise<ActionResult> {
   const current = loadGuestData();
+  const usage = computeWalletUsage(current)[id];
+  const blocked = usage ? walletDeleteBlockedMessage(usage) : null;
+  if (blocked) return { error: blocked };
   commit({
     ...current,
     wallets: current.wallets.filter((w) => w.id !== id),

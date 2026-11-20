@@ -10,7 +10,9 @@ export type InsightIcon =
   | "trend-down"
   | "calendar"
   | "repeat"
-  | "projection";
+  | "projection"
+  | "payday"
+  | "receipt";
 
 export type Insight = {
   id: string;
@@ -41,6 +43,21 @@ export type InsightInput = {
     // "13 minggu sampai akhir Agustus 2026" untuk bulan yang sudah lewat
     windowLabel?: string;
     rows: { dow: number; total: number; occurrences: number }[];
+  } | null;
+  // pengeluaran di hari-hari pertama periode (setelah gajian). Kebiasaan
+  // menghabiskan uang di awal sering membuat uang habis sebelum periode usai.
+  early?: {
+    spent: number;
+    days: number;
+    // true kalau awal periode = hari gajian (tanggal gajian diatur)
+    afterPayday: boolean;
+  } | null;
+  // pengeluaran tunggal terbesar di periode ini; dateLabel sudah diformat
+  biggest?: {
+    amount: number;
+    categoryName: string;
+    dateLabel: string;
+    note: string | null;
   } | null;
   // null = jatah jajan belum diatur
   snack: {
@@ -143,6 +160,37 @@ export function buildInsights(input: InsightInput): Insight[] {
     });
   }
 
+  // 2b. Seberapa besar bagian pengeluaran yang habis di hari-hari pertama.
+  //     Periode berjalan baru dinilai setelah dua minggu supaya angkanya tidak
+  //     sekadar 100% di hari ketujuh.
+  if (
+    input.early &&
+    input.totalExpense >= 100_000 &&
+    (!isCurrentMonth || daysElapsed >= 14)
+  ) {
+    const { spent, days, afterPayday } = input.early;
+    const share = spent / input.totalExpense;
+    const pct = Math.round(share * 100);
+    const when = afterPayday ? "setelah gajian" : `${n} ini`;
+    if (share >= 0.4) {
+      insights.push({
+        id: "early-spend",
+        tone: "warn",
+        icon: "payday",
+        title: `${pct}% pengeluaran habis di ${days} hari pertama`,
+        detail: `${money(spent)} dari ${money(input.totalExpense)} keluar dalam ${days} hari pertama ${when}, padahal itu cuma ${days} dari ${daysInMonth} hari. Tagihan tetap ikut terhitung, tapi belanja yang bisa ditunda lebih aman ditahan dulu di minggu pertama.`,
+      });
+    } else if (share <= 0.15) {
+      insights.push({
+        id: "early-spend",
+        tone: "good",
+        icon: "payday",
+        title: `Awal ${n} terkendali`,
+        detail: `Hanya ${pct}% pengeluaran (${money(spent)}) keluar dalam ${days} hari pertama ${when}, jadi uangmu tidak habis di awal.`,
+      });
+    }
+  }
+
   // 3. Kategori dengan kenaikan terbesar dibanding bulan lalu; kategori
   //    dengan penurunan terbesar hanya dilaporkan untuk bulan yang sudah
   //    selesai, karena bulan berjalan belum utuh.
@@ -241,6 +289,24 @@ export function buildInsights(input: InsightInput): Insight[] {
     });
   }
 
+  // 6b. Satu pengeluaran yang sendirian menyumbang porsi besar
+  if (
+    input.biggest &&
+    input.totalExpense > 0 &&
+    input.biggest.amount >= 100_000 &&
+    input.biggest.amount / input.totalExpense >= 0.15
+  ) {
+    const b = input.biggest;
+    const pct = Math.round((b.amount / input.totalExpense) * 100);
+    insights.push({
+      id: "biggest-expense",
+      tone: "info",
+      icon: "receipt",
+      title: `Satu pengeluaran ${money(b.amount)} di ${b.categoryName}`,
+      detail: `Tercatat ${b.dateLabel}${b.note ? ` (${b.note})` : ""}, ${pct}% dari seluruh pengeluaran di ${monthLabel}. Kalau tidak direncanakan, ini yang paling layak dikurangi lain kali.`,
+    });
+  }
+
   // 7. Penurunan terbesar (bulan selesai saja)
   const biggestDown = deltas
     .filter((d) => d.delta < 0 && worthy(d))
@@ -255,5 +321,5 @@ export function buildInsights(input: InsightInput): Insight[] {
     });
   }
 
-  return insights.slice(0, 6);
+  return insights.slice(0, 8);
 }
