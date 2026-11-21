@@ -7,8 +7,52 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+// Pelindung isian: kalau form di dalam dialog sudah diubah, klik di luar
+// dialog (mudah kena tak sengaja, apalagi di HP) tidak menutupnya. Dialog
+// bergoyang sebentar sebagai tanda. Tombol Batal, X, dan Esc tetap menutup
+// karena itu tindakan yang disengaja. Dialog tanpa form (konfirmasi) tidak
+// terpengaruh.
+const MarkDirtyContext = React.createContext<(() => void) | null>(null)
+
+function Dialog({ onOpenChange, open, ...props }: DialogPrimitive.Root.Props) {
+  const dirty = React.useRef(false)
+  const markDirty = React.useCallback(() => {
+    dirty.current = true
+  }, [])
+
+  React.useEffect(() => {
+    if (open === false) dirty.current = false
+  }, [open])
+
+  return (
+    <MarkDirtyContext.Provider value={markDirty}>
+      <DialogPrimitive.Root
+        data-slot="dialog"
+        open={open}
+        onOpenChange={(next, details) => {
+          if (!next && dirty.current && details.reason === "outside-press") {
+            details.cancel()
+            const popup = document.querySelector<HTMLElement>(
+              '[data-slot="dialog-content"]'
+            )
+            popup?.animate(
+              [
+                { translate: "-50% -50%" },
+                { translate: "calc(-50% - 6px) -50%" },
+                { translate: "calc(-50% + 6px) -50%" },
+                { translate: "-50% -50%" },
+              ],
+              { duration: 220, easing: "ease-in-out" }
+            )
+            return
+          }
+          if (!next) dirty.current = false
+          onOpenChange?.(next, details)
+        }}
+        {...props}
+      />
+    </MarkDirtyContext.Provider>
+  )
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
@@ -47,11 +91,15 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
 }) {
+  const markDirty = React.useContext(MarkDirtyContext)
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
+        onInput={(e) => {
+          if ((e.target as HTMLElement).closest("form")) markDirty?.()
+        }}
         className={cn(
           // max-h pakai dvh + scroll internal supaya dialog tinggi tetap
           // terjangkau di layar pendek (HP dengan keyboard terbuka)
