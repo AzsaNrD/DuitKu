@@ -312,20 +312,28 @@ export function TransactionsClient({
             </Select>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
-            <Input
-              type="date"
-              value={filters.dateFrom ?? ""}
-              onChange={(e) => setParam("from", e.target.value || undefined)}
-              aria-label="Dari tanggal"
-            />
-            <Input
-              type="date"
-              value={filters.dateTo ?? ""}
-              onChange={(e) => setParam("to", e.target.value || undefined)}
-              aria-label="Sampai tanggal"
-            />
+            {/* Kolom tanggal kosong tampil polos di beberapa browser HP (tanpa
+                dd/mm/yyyy), jadi tiap kolom diberi label yang terlihat. */}
+            <label className="space-y-1 text-xs text-muted-foreground">
+              Dari tanggal
+              <Input
+                type="date"
+                value={filters.dateFrom ?? ""}
+                onChange={(e) => setParam("from", e.target.value || undefined)}
+                className="text-foreground"
+              />
+            </label>
+            <label className="space-y-1 text-xs text-muted-foreground">
+              Sampai tanggal
+              <Input
+                type="date"
+                value={filters.dateTo ?? ""}
+                onChange={(e) => setParam("to", e.target.value || undefined)}
+                className="text-foreground"
+              />
+            </label>
             <form
-              className="flex gap-2"
+              className="flex gap-2 sm:self-end"
               onSubmit={(e) => {
                 e.preventDefault();
                 setParam("q", search || undefined);
