@@ -91,6 +91,74 @@ export const transactionSchema = z
     path: ["fee"],
   });
 
+const SPLIT_MAX_MEMBERS = 20;
+
+const splitMemberFields = {
+  name: z
+    .string()
+    .trim()
+    .min(1, "Nama wajib diisi")
+    .max(40, "Nama maksimal 40 karakter"),
+  // kosong = belum ditentukan
+  amount: amountOptional.optional(),
+};
+
+export const splitMemberSchema = z.object(splitMemberFields);
+
+const splitBaseFields = {
+  title: z
+    .string()
+    .trim()
+    .min(1, "Judul wajib diisi")
+    .max(60, "Judul maksimal 60 karakter"),
+  total: amountPositive("Total harus lebih dari 0"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
+  note: z.string().max(255).optional(),
+};
+
+export const splitUpdateSchema = z.object(splitBaseFields);
+
+export const splitSchema = z
+  .object({
+    ...splitBaseFields,
+    // apakah kamu sendiri ikut membagi, dan berapa bagianmu (opsional)
+    includeSelf: z.boolean(),
+    selfAmount: amountOptional.optional(),
+    members: z
+      .array(z.object(splitMemberFields))
+      .min(1, "Tambahkan minimal satu orang")
+      .max(SPLIT_MAX_MEMBERS, `Maksimal ${SPLIT_MAX_MEMBERS} orang`),
+    // catat juga sebagai pengeluaran dari dompet
+    recordExpense: z.boolean(),
+    walletId: z.string().optional(),
+    categoryId: z.string().optional(),
+  })
+  .refine((d) => !d.recordExpense || !!d.walletId, {
+    message: "Pilih dompet yang membayar",
+    path: ["walletId"],
+  })
+  .refine((d) => !d.recordExpense || !!d.categoryId, {
+    message: "Pilih kategori",
+    path: ["categoryId"],
+  })
+  .refine(
+    (d) => {
+      const assigned =
+        (d.includeSelf ? (d.selfAmount ?? 0) : 0) +
+        d.members.reduce((s, m) => s + (m.amount ?? 0), 0);
+      return assigned <= d.total;
+    },
+    { message: "Jumlah yang ditentukan melebihi total", path: ["total"] }
+  );
+
+export const splitPaymentSchema = z.object({
+  memberId: z.string().min(1),
+  amount: amountPositive("Jumlah harus lebih dari 0"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
+  // kosong = tidak dicatat ke dompet
+  walletId: z.string().optional(),
+});
+
 export const recurringSchema = z
   .object({
     type: z.enum(["income", "expense", "transfer"]),
@@ -148,6 +216,10 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type WalletInput = z.infer<typeof walletSchema>;
 export type CategoryInput = z.infer<typeof categorySchema>;
 export type TransactionInput = z.infer<typeof transactionSchema>;
+export type SplitInput = z.infer<typeof splitSchema>;
+export type SplitUpdateInput = z.infer<typeof splitUpdateSchema>;
+export type SplitMemberInputValues = z.infer<typeof splitMemberSchema>;
+export type SplitPaymentInput = z.infer<typeof splitPaymentSchema>;
 export const goalSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi").max(60),
   targetAmount: amountPositive("Target harus lebih dari 0"),

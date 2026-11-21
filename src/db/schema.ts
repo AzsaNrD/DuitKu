@@ -241,6 +241,87 @@ export const goals = pgTable(
   (table) => [index("goals_user_id_idx").on(table.userId)]
 );
 
+// Talangan / patungan: pengeluaran yang kamu bayar dulu lalu dibagi ke
+// beberapa orang. transactionId menunjuk pengeluaran aslinya (kalau dicatat
+// sekaligus); kalau transaksinya dihapus, talangannya tetap ada.
+export const splits = pgTable(
+  "splits",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    total: numeric("total", { precision: 14, scale: 0 }).notNull(),
+    date: date("date", { mode: "string" }).notNull(),
+    note: text("note"),
+    walletId: text("wallet_id").references(() => wallets.id, {
+      onDelete: "set null",
+    }),
+    transactionId: text("transaction_id").references(() => transactions.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [index("splits_user_id_idx").on(table.userId)]
+);
+
+// Orang yang ikut dalam satu talangan. amount kosong = belum ditentukan.
+// isSelf = bagianmu sendiri (tidak pernah berutang padamu).
+export const splitMembers = pgTable(
+  "split_members",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    splitId: text("split_id")
+      .notNull()
+      .references(() => splits.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    isSelf: boolean("is_self").notNull().default(false),
+    amount: numeric("amount", { precision: 14, scale: 0 }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("split_members_split_id_idx").on(table.splitId),
+    index("split_members_user_id_idx").on(table.userId),
+  ]
+);
+
+// Uang yang dikembalikan satu orang. transactionId = pemasukan yang tercatat
+// di dompet (kosong kalau tidak dicatat ke dompet); kalau transaksinya
+// dihapus, catatan pembayarannya ikut terhapus.
+export const splitPayments = pgTable(
+  "split_payments",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => splitMembers.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    amount: numeric("amount", { precision: 14, scale: 0 }).notNull(),
+    date: date("date", { mode: "string" }).notNull(),
+    transactionId: text("transaction_id").references(() => transactions.id, {
+      onDelete: "cascade",
+    }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("split_payments_member_id_idx").on(table.memberId),
+    index("split_payments_user_id_idx").on(table.userId),
+  ]
+);
+
 export type AllocationBucketKind = "expense" | "savings";
 
 // Rencana alokasi pendapatan (mis. 50/30/20): satu set pos per user yang

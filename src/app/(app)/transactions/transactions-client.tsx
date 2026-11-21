@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  HandCoins,
   Pencil,
   Plus,
   Repeat,
@@ -221,8 +222,19 @@ export function TransactionsClient({
               variant="outline"
               nativeButton={false}
               render={<Link href="/recurring" />}
+              aria-label="Transaksi berulang"
             >
               <Repeat /> <span className="hidden sm:inline">Berulang</span>
+            </Button>
+          )}
+          {!guest && (
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/splits" />}
+              aria-label="Talangan"
+            >
+              <HandCoins /> <span className="hidden sm:inline">Talangan</span>
             </Button>
           )}
           <Button

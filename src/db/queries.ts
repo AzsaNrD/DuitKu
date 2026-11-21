@@ -36,6 +36,9 @@ import {
   recurringRules,
   snackCategories,
   snackPlans,
+  splitMembers,
+  splitPayments,
+  splits,
   transactions,
   userSettings,
   wallets,
@@ -983,4 +986,97 @@ export async function getBiggestExpense(userId: string, range: DateRange) {
     note: row.note,
     categoryName: row.categoryName ?? "Tanpa Kategori",
   };
+}
+
+// ---------- Talangan ----------
+
+export type SplitMemberView = {
+  id: string;
+  name: string;
+  isSelf: boolean;
+  amount: number | null;
+  paid: number;
+  payments: { id: string; amount: number; date: string; inWallet: boolean }[];
+};
+
+export type SplitView = {
+  id: string;
+  title: string;
+  total: number;
+  date: string;
+  note: string | null;
+  walletId: string | null;
+  walletName: string | null;
+  // pengeluaran aslinya tercatat di Transaksi
+  hasExpense: boolean;
+  members: SplitMemberView[];
+};
+
+export async function getSplits(userId: string): Promise<SplitView[]> {
+  const [splitRows, memberRows, paymentRows] = await Promise.all([
+    db
+      .select({
+        id: splits.id,
+        title: splits.title,
+        total: splits.total,
+        date: splits.date,
+        note: splits.note,
+        transactionId: splits.transactionId,
+        walletId: splits.walletId,
+        walletName: wallets.name,
+      })
+      .from(splits)
+      .leftJoin(wallets, eq(splits.walletId, wallets.id))
+      .where(eq(splits.userId, userId))
+      .orderBy(desc(splits.date), desc(splits.createdAt)),
+    db
+      .select()
+      .from(splitMembers)
+      .where(eq(splitMembers.userId, userId))
+      .orderBy(splitMembers.sortOrder, splitMembers.createdAt),
+    db
+      .select()
+      .from(splitPayments)
+      .where(eq(splitPayments.userId, userId))
+      .orderBy(desc(splitPayments.date), desc(splitPayments.createdAt)),
+  ]);
+
+  const paymentsBy = new Map<string, SplitMemberView["payments"]>();
+  for (const p of paymentRows) {
+    const list = paymentsBy.get(p.memberId) ?? [];
+    list.push({
+      id: p.id,
+      amount: Number(p.amount),
+      date: p.date,
+      inWallet: !!p.transactionId,
+    });
+    paymentsBy.set(p.memberId, list);
+  }
+
+  const membersBy = new Map<string, SplitMemberView[]>();
+  for (const m of memberRows) {
+    const payments = paymentsBy.get(m.id) ?? [];
+    const list = membersBy.get(m.splitId) ?? [];
+    list.push({
+      id: m.id,
+      name: m.name,
+      isSelf: m.isSelf,
+      amount: m.amount === null ? null : Number(m.amount),
+      paid: payments.reduce((s, p) => s + p.amount, 0),
+      payments,
+    });
+    membersBy.set(m.splitId, list);
+  }
+
+  return splitRows.map((s) => ({
+    id: s.id,
+    title: s.title,
+    total: Number(s.total),
+    date: s.date,
+    note: s.note,
+    walletId: s.walletId,
+    walletName: s.walletName,
+    hasExpense: !!s.transactionId,
+    members: membersBy.get(s.id) ?? [],
+  }));
 }

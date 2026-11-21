@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { Plus } from "lucide-react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { actionToast, type ActionResult } from "@/lib/action-toast";
@@ -111,6 +113,12 @@ export function TransactionFormDialog({
         },
   });
 
+  // Biaya admin jarang dipakai di pengeluaran tunai, jadi disembunyikan
+  // sampai dibutuhkan. Terbuka otomatis kalau sedang mengedit transaksi yang
+  // punya biaya, atau saat memilih Transfer.
+  const [feeOpen, setFeeOpen] = useState(
+    !!editing?.fee || preset?.type === "transfer"
+  );
   const type = useWatch({ control, name: "type" });
   const walletId = useWatch({ control, name: "walletId" });
   const amountText = useWatch({ control, name: "amount" });
@@ -177,6 +185,8 @@ export function TransactionFormDialog({
                   setValue("transferToWalletId", undefined);
                   // biaya admin tidak berlaku untuk pemasukan
                   if (v === "income") setValue("fee", undefined);
+                  // transfer paling sering kena biaya
+                  if (v === "transfer") setFeeOpen(true);
                 }}
               >
                 <TabsList className="w-full">
@@ -210,9 +220,32 @@ export function TransactionFormDialog({
             )}
           </div>
 
-          {type !== "income" && (
+          {type !== "income" && !feeOpen && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="-mt-2 justify-start text-muted-foreground"
+              onClick={() => setFeeOpen(true)}
+            >
+              <Plus /> Biaya admin
+            </Button>
+          )}
+          {type !== "income" && feeOpen && (
             <div className="space-y-2">
-              <Label htmlFor="tx-fee">Biaya admin (opsional)</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="tx-fee">Biaya admin (opsional)</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue("fee", undefined);
+                    setFeeOpen(false);
+                  }}
+                  className="text-xs text-muted-foreground underline-offset-4 hover:underline max-sm:py-2"
+                >
+                  Sembunyikan
+                </button>
+              </div>
               <AmountInput
                 id="tx-fee"
                 min={0}
