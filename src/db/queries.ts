@@ -133,18 +133,40 @@ export async function getPayday(userId: string): Promise<PaydayPlan> {
   };
 }
 
+// Uang teman yang dikembalikan lewat Talangan masuk ke dompet sebagai
+// pemasukan, tapi bukan penghasilan: itu mengganti uang yang sudah kamu
+// keluarkan. Laporan tidak menghitungnya sebagai Pemasukan dan mengurangkannya
+// dari Pengeluaran, supaya yang tampil adalah pengeluaran bersihmu.
+const isRepayment = sql`exists (select 1 from split_payments sp where sp.transaction_id = ${transactions.id})`;
+const incomeExpr = sql`coalesce(sum(case when ${transactions.type} = 'income' and not ${isRepayment} then ${transactions.amount} else 0 end), 0)`;
+const grossExpenseExpr = sql`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.amount} else 0 end), 0)`;
+const repaidExpr = sql`coalesce(sum(case when ${transactions.type} = 'income' and ${isRepayment} then ${transactions.amount} else 0 end), 0)`;
+
+// Pengeluaran bersih tidak pernah negatif: uang yang kembali di periode
+// berikutnya dari pengeluaran periode lalu cukup dianggap nol di sini.
+function netExpense(gross: number, repaid: number) {
+  return Math.max(0, gross - repaid);
+}
+
 // Total pemasukan & pengeluaran satu bulan kalender atau satu periode gajian
-// (transfer tidak dihitung)
+// (transfer tidak dihitung). repaid = uang Talangan yang kembali, sudah
+// dikurangkan dari expense.
 export async function getMonthSummary(userId: string, period: string | DateRange) {
   const [row] = await db
     .select({
-      income: sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else 0 end), 0)`,
-      expense: sql<string>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.amount} else 0 end), 0)`,
+      income: sql<string>`${incomeExpr}`,
+      expense: sql<string>`${grossExpenseExpr}`,
+      repaid: sql<string>`${repaidExpr}`,
     })
     .from(transactions)
     .where(and(eq(transactions.userId, userId), inPeriod(period)));
 
-  return { income: Number(row.income), expense: Number(row.expense) };
+  const repaid = Number(row.repaid);
+  return {
+    income: Number(row.income),
+    expense: netExpense(Number(row.expense), repaid),
+    repaid,
+  };
 }
 
 export async function getExpenseByCategory(
@@ -190,6 +212,7 @@ export async function getIncomeByCategory(
       and(
         eq(transactions.userId, userId),
         eq(transactions.type, "income"),
+        sql`not ${isRepayment}`,
         inPeriod(period)
       )
     )
@@ -339,8 +362,9 @@ export async function getMonthlyTrend(
   const rows = await db
     .select({
       date: transactions.date,
-      income: sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else 0 end), 0)`,
-      expense: sql<string>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.amount} else 0 end), 0)`,
+      income: sql<string>`${incomeExpr}`,
+      expense: sql<string>`${grossExpenseExpr}`,
+      repaid: sql<string>`${repaidExpr}`,
     })
     .from(transactions)
     .where(
@@ -355,13 +379,15 @@ export async function getMonthlyTrend(
   return ranges.map((r) => {
     let income = 0;
     let expense = 0;
+    let repaid = 0;
     for (const row of rows) {
       if (row.date >= r.start && row.date <= r.end) {
         income += Number(row.income);
         expense += Number(row.expense);
+        repaid += Number(row.repaid);
       }
     }
-    return { month: r.key, income, expense };
+    return { month: r.key, income, expense: netExpense(expense, repaid) };
   });
 }
 

@@ -282,6 +282,12 @@ export default async function ReportsPage({
                 noun={noun}
               />
             </div>
+            {summary.repaid > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Sudah dikurangi pengembalian Talangan{" "}
+                <span className="money">{formatIDR(summary.repaid)}</span>.
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -458,7 +464,7 @@ export default async function ReportsPage({
             <CategoryBars
               title="Pengeluaran"
               items={expenseByCategory}
-              total={summary.expense}
+              total={expenseByCategory.reduce((sum, c) => sum + c.total, 0)}
             />
             <CategoryBars
               title="Pemasukan"
