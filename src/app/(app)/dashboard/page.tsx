@@ -420,7 +420,7 @@ export default async function DashboardPage() {
                         className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-muted"
                       >
                         <div
-                          className="h-full rounded-full transition-all"
+                          className="bar-grow h-full rounded-full transition-all"
                           style={{
                             width: `${pct}%`,
                             backgroundColor: done ? "var(--income)" : goal.color,

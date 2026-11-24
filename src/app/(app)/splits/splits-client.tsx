@@ -488,7 +488,7 @@ function BillCard({
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
             <div
               className={cn(
-                "h-full rounded-full transition-all",
+                "bar-grow h-full rounded-full transition-all",
                 summary.over ? "bg-destructive" : "bg-primary"
               )}
               style={{ width: `${pct}%` }}
@@ -815,6 +815,8 @@ function BillFormDialog({
   knownNames: string[];
 }) {
   const [step, setStep] = useState<1 | 2>(1);
+  // arah geser baru dipakai setelah pindah langkah, bukan saat dialog dibuka
+  const [moved, setMoved] = useState(false);
   const [title, setTitle] = useState(editing?.title ?? "");
   const [total, setTotal] = useState(
     editing ? formatThousands(String(editing.total)) : ""
@@ -893,6 +895,7 @@ function BillFormDialog({
       );
     }
     setError(null);
+    setMoved(true);
     setStep(2);
   }
 
@@ -974,7 +977,18 @@ function BillFormDialog({
             </div>
           )}
         </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <form
+          key={step}
+          onSubmit={onSubmit}
+          className={cn(
+            "space-y-4",
+            moved &&
+              (step === 2
+                ? "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-4 duration-200"
+                : "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-4 duration-200")
+          )}
+          noValidate
+        >
           {showBasics && (
             <>
               <div className="space-y-2">
@@ -1098,7 +1112,7 @@ function BillFormDialog({
                 <div className="h-2 w-full overflow-hidden rounded-full bg-background">
                   <div
                     className={cn(
-                      "h-full rounded-full transition-all",
+                      "bar-grow h-full rounded-full transition-all",
                       remaining < 0 ? "bg-destructive" : "bg-primary"
                     )}
                     style={{ width: `${pct}%` }}
@@ -1245,6 +1259,7 @@ function BillFormDialog({
                 type="button"
                 variant="outline"
                 onClick={() => {
+                  setMoved(true);
                   setStep(1);
                   setError(null);
                 }}

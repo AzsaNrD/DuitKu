@@ -199,7 +199,7 @@ export function GoalsClient({
                     </div>
                     <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full rounded-full transition-all"
+                        className="bar-grow h-full rounded-full transition-all"
                         style={{
                           width: `${Math.min(100, pct)}%`,
                           backgroundColor: done ? "var(--income)" : goal.color,

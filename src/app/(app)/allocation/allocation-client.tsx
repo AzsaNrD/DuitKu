@@ -387,7 +387,7 @@ function CategoryLimitRow({
       {limit !== null && (
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className={cn("h-full rounded-full transition-all", spendingBarColor(pct))}
+            className={cn("bar-grow h-full rounded-full transition-all", spendingBarColor(pct))}
             style={{ width: `${Math.min(100, pct)}%` }}
           />
         </div>

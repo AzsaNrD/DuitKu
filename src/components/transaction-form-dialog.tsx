@@ -232,7 +232,7 @@ export function TransactionFormDialog({
             </Button>
           )}
           {type !== "income" && feeOpen && (
-            <div className="space-y-2">
+            <div className="space-y-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 duration-200">
               <div className="flex items-center justify-between">
                 <Label htmlFor="tx-fee">Biaya admin (opsional)</Label>
                 <button

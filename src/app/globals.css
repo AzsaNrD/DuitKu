@@ -36,6 +36,12 @@
   }
 }
 
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
 @keyframes pop-in {
   0% {
     opacity: 0;
@@ -91,6 +97,13 @@
     .bento-stagger > [data-slot="card"]:hover {
       transform: translateY(-3px);
       box-shadow: var(--shadow-bento-hover);
+    }
+
+    /* bar progres tumbuh dari kiri saat halaman dibuka; perubahan nilai
+       sesudahnya tetap lewat transition lebar */
+    .bar-grow {
+      transform-origin: left;
+      animation: bar-grow 800ms var(--ease-out) 200ms backwards;
     }
 
     /* muncul saat discroll (landing) */
