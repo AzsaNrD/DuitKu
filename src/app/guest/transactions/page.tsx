@@ -11,6 +11,7 @@ import {
   computeWalletsWithBalances,
   createGuestTransaction,
   deleteGuestTransaction,
+  restoreGuestTransactions,
   downloadGuestTransactionsCsv,
   updateGuestTransaction,
   useGuestData,
@@ -59,6 +60,7 @@ function GuestTransactionsContent() {
       createTransaction: createGuestTransaction,
       updateTransaction: updateGuestTransaction,
       deleteTransaction: deleteGuestTransaction,
+      restoreTransactions: restoreGuestTransactions,
       onExportCsv: () => downloadGuestTransactionsCsv(filters),
     }),
     [filters]

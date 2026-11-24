@@ -487,15 +487,38 @@ export async function updateGuestTransaction(
   return { success: true };
 }
 
-export async function deleteGuestTransaction(id: string): Promise<ActionResult> {
+export async function deleteGuestTransaction(
+  id: string
+): Promise<ActionResult & { snapshot?: Transaction[] }> {
   const current = loadGuestData();
+  // biaya admin yang menempel ikut terhapus (meniru cascade di DB)
+  const removed = current.transactions.filter(
+    (t) => t.id === id || t.feeForId === id
+  );
   commit({
     ...current,
-    // biaya admin yang menempel ikut terhapus (meniru cascade di DB)
     transactions: current.transactions.filter(
       (t) => t.id !== id && t.feeForId !== id
     ),
   });
+  return { success: true, snapshot: removed };
+}
+
+// Urungkan hapus di mode tanpa akun: kembalikan baris yang tadi dibuang
+export async function restoreGuestTransactions(
+  removed: Transaction[]
+): Promise<ActionResult> {
+  const current = loadGuestData();
+  const existing = new Set(current.transactions.map((t) => t.id));
+  const walletIds = new Set(current.wallets.map((w) => w.id));
+  const back = removed.filter(
+    (t) =>
+      !existing.has(t.id) &&
+      walletIds.has(t.walletId) &&
+      (!t.transferToWalletId || walletIds.has(t.transferToWalletId))
+  );
+  if (back.length === 0) return { error: "Tidak bisa dipulihkan" };
+  commit({ ...current, transactions: [...current.transactions, ...back] });
   return { success: true };
 }
 

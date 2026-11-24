@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { actionToast, type ActionResult } from "@/lib/action-toast";
+import { undoableToast, type ActionResult } from "@/lib/action-toast";
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -45,7 +45,7 @@ import {
   type EditableTransaction,
   type TransactionGuestActions,
 } from "@/components/transaction-form-dialog";
-import { deleteTransaction } from "@/actions/transactions";
+import { deleteTransaction, restoreTransactions } from "@/actions/transactions";
 import { formatIDR, formatDate, todayString } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type {
@@ -61,7 +61,10 @@ type PageData = Awaited<ReturnType<typeof getTransactionsPage>>;
 // asli + tombol export CSV lewat /api/export, jadi halaman yang sudah ada
 // (login) tidak perlu berubah sama sekali
 export type TransactionsGuestActions = TransactionGuestActions & {
-  deleteTransaction: (id: string) => Promise<ActionResult>;
+  deleteTransaction: (
+    id: string
+  ) => Promise<ActionResult & { snapshot?: unknown }>;
+  restoreTransactions: (snapshot: never) => Promise<ActionResult>;
   onExportCsv: () => void;
 };
 
@@ -118,7 +121,6 @@ export function TransactionsClient({
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<EditableTransaction | null>(null);
-  const [deleting, setDeleting] = useState<TransactionRow | null>(null);
   const [search, setSearch] = useState(filters.q ?? "");
   const [confirmExport, setConfirmExport] = useState(false);
 
@@ -161,14 +163,19 @@ export function TransactionsClient({
     setFormOpen(true);
   }
 
-  function handleDelete() {
-    if (!deleting) return;
-    setDeleting(null);
+  // langsung dihapus tanpa konfirmasi; salah tekan bisa diurungkan dari toast
+  function handleDelete(row: TransactionRow) {
     const deleteFn = guest?.deleteTransaction ?? deleteTransaction;
-    actionToast(deleteFn(deleting.id), {
-      loading: "Menghapus transaksi...",
-      success: "Transaksi dihapus",
-    });
+    const restoreFn = guest?.restoreTransactions ?? restoreTransactions;
+    undoableToast(
+      deleteFn(row.id),
+      restoreFn as (s: unknown) => Promise<ActionResult>,
+      {
+        loading: "Menghapus transaksi...",
+        success: "Transaksi dihapus",
+        restored: "Transaksi dipulihkan",
+      }
+    );
   }
 
   function startExport() {
@@ -429,7 +436,7 @@ export function TransactionsClient({
                       row={row}
                       hideDate
                       onEdit={() => openEdit(row)}
-                      onDelete={() => setDeleting(row)}
+                      onDelete={() => handleDelete(row)}
                     />
                   ))}
                 </div>
@@ -500,26 +507,6 @@ export function TransactionsClient({
               }}
             >
               Tetap Unduh
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Hapus transaksi?</DialogTitle>
-            <DialogDescription>
-              Transaksi {formatIDR(Number(deleting?.amount ?? 0))} pada{" "}
-              {deleting ? formatDate(deleting.date) : ""} akan dihapus permanen.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleting(null)}>
-              Batal
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Hapus
             </Button>
           </DialogFooter>
         </DialogContent>

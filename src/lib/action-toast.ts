@@ -23,3 +23,36 @@ export function actionToast(
     }
   );
 }
+
+// Hapus dengan tombol "Urungkan": hasil hapus membawa snapshot isi yang
+// dihapus, dan toast sukses menawarkan memulihkannya selama beberapa detik.
+// Tidak ada dialog konfirmasi, jadi salah tekan cukup diurungkan.
+export function undoableToast<S>(
+  promise: Promise<ActionResult & { snapshot?: S }>,
+  restore: (snapshot: S) => Promise<ActionResult>,
+  messages: { loading: string; success: string; restored: string }
+) {
+  const id = toast.loading(messages.loading);
+  promise
+    .then((res) => {
+      if (res && "error" in res && res.error) throw new Error(res.error);
+      const snapshot = res.snapshot;
+      toast.success(messages.success, {
+        id,
+        duration: 8000,
+        action: snapshot
+          ? {
+              label: "Urungkan",
+              onClick: () =>
+                actionToast(restore(snapshot), {
+                  loading: "Memulihkan...",
+                  success: messages.restored,
+                }),
+            }
+          : undefined,
+      });
+    })
+    .catch((e: Error) =>
+      toast.error(e.message || "Terjadi kesalahan, coba lagi", { id })
+    );
+}

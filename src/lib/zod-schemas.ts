@@ -318,3 +318,42 @@ export type CategoryLimitInput = z.infer<typeof categoryLimitSchema>;
 export type RecurringInput = z.infer<typeof recurringSchema>;
 export type GoalInput = z.infer<typeof goalSchema>;
 export type GoalSavingInput = z.infer<typeof goalSavingSchema>;
+
+// Isi transaksi yang baru dihapus, dikirim balik ke server untuk "Urungkan".
+// splitLinks dan payments memulihkan sambungan ke Talangan yang ikut putus
+// saat transaksinya dihapus.
+export const deletedTransactionsSchema = z.object({
+  transactions: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        walletId: z.uuid(),
+        categoryId: z.uuid().nullable(),
+        type: z.enum(["income", "expense", "transfer", "adjustment"]),
+        amount: z.string().regex(/^-?\d+$/),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        note: z.string().nullable(),
+        transferToWalletId: z.uuid().nullable(),
+        feeForId: z.uuid().nullable(),
+        createdAt: z.string(),
+      })
+    )
+    .min(1)
+    .max(10),
+  splitLinks: z
+    .array(z.object({ splitId: z.uuid(), transactionId: z.uuid() }))
+    .max(10),
+  payments: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        memberId: z.uuid(),
+        amount: z.string().regex(/^\d+$/),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        transactionId: z.uuid(),
+      })
+    )
+    .max(10),
+});
+
+export type DeletedTransactions = z.infer<typeof deletedTransactionsSchema>;
