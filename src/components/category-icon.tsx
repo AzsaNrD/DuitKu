@@ -29,6 +29,7 @@ import {
   TrendingUp,
   Utensils,
   Wifi,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -48,6 +49,7 @@ export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   wifi: Wifi,
   phone: Phone,
   smartphone: Smartphone,
+  wrench: Wrench,
   "gamepad-2": Gamepad2,
   clapperboard: Clapperboard,
   plane: Plane,
